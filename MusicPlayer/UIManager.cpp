@@ -174,7 +174,7 @@ void UIManager::playSystemAudio(const Song* current) {
     mciSendStringA(command.c_str(), NULL, 0, NULL);
     mciSendStringA("play mymusic", NULL, 0, NULL);
 #else
-    system("pkill -f ffplay > /dev/null 2>&1");
+    system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
     std::string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";
     system(command.c_str());
     linuxPlaybackStartTime = std::chrono::steady_clock::now();
@@ -339,7 +339,7 @@ void UIManager::showMenu() {
 #ifdef _WIN32
         mciSendStringA("close all", NULL, 0, NULL);
 #else
-        system("pkill -f ffplay > /dev/null 2>&1");
+        system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
 #endif
         currentScreen = Screen::EXIT;
     }
@@ -673,7 +673,7 @@ void UIManager::showNowPlaying() {
 #ifdef _WIN32
         mciSendStringA("close all", NULL, 0, NULL);
 #else
-        system("pkill -f ffplay > /dev/null 2>&1");
+        system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
 #endif
         setColor(CLR_GRAY);
         std::cout << "  Playback stopped.\n";
