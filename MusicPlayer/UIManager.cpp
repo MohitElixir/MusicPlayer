@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
+#include <chrono>
 #ifdef _WIN32
 #include <windows.h>
 #include <conio.h>
@@ -16,6 +17,30 @@
 #endif
 
 namespace {
+#ifndef _WIN32
+    std::chrono::steady_clock::time_point linuxPlaybackStartTime;
+    int linuxCurrentDurationMs = 0;
+
+    int getDurationMs(const std::string& filePath) {
+        std::string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filePath + "\" 2>/dev/null";
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) return 0;
+        char buffer[128];
+        std::string result = "";
+        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            result += buffer;
+        }
+        pclose(pipe);
+        if (!result.empty()) {
+            try {
+                double seconds = std::stod(result);
+                return static_cast<int>(seconds * 1000);
+            } catch (...) {}
+        }
+        return 0;
+    }
+#endif
+
     const int UI_WIDTH = 64;
 
     // Helper to get visual width of UTF-8 strings (assuming 1 char = 1 width)
@@ -150,6 +175,8 @@ void UIManager::playSystemAudio(const Song* current) {
     system("pkill -f ffplay > /dev/null 2>&1");
     std::string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";
     system(command.c_str());
+    linuxPlaybackStartTime = std::chrono::steady_clock::now();
+    linuxCurrentDurationMs = getDurationMs(current->getFilePath());
 #endif
 }
 
@@ -509,13 +536,20 @@ void UIManager::showNowPlaying() {
     emptyRow();
 
     // Progress details
-    char lenBuf[128] = {0}, posBuf[128] = {0};
+    int lengthMs = 0;
+    int positionMs = 0;
 #ifdef _WIN32
+    char lenBuf[128] = {0}, posBuf[128] = {0};
     mciSendStringA("status mymusic length", lenBuf, sizeof(lenBuf), NULL);
     mciSendStringA("status mymusic position", posBuf, sizeof(posBuf), NULL);
+    lengthMs  = atoi(lenBuf);
+    positionMs = atoi(posBuf);
+#else
+    lengthMs = linuxCurrentDurationMs;
+    auto now = std::chrono::steady_clock::now();
+    positionMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(now - linuxPlaybackStartTime).count());
+    if (positionMs > lengthMs && lengthMs > 0) positionMs = lengthMs;
 #endif
-    int lengthMs  = atoi(lenBuf);
-    int positionMs = atoi(posBuf);
 
     std::string timeL = formatTime(positionMs);
     std::string timeR = formatTime(lengthMs);
