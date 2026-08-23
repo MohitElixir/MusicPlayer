@@ -4,7 +4,9 @@
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
+#ifndef _WIN32
 #include <chrono>
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #include <conio.h>
@@ -332,7 +334,15 @@ void UIManager::showMenu() {
     else if (choice == 3) currentScreen = Screen::NOW_PLAYING;
     else if (choice == 4) currentScreen = Screen::FAVORITES;
     else if (choice == 5) currentScreen = Screen::PLAYLISTS;
-    else if (choice == 6) currentScreen = Screen::EXIT;
+    else if (choice == 6) {
+        manager.stop();
+#ifdef _WIN32
+        mciSendStringA("close all", NULL, 0, NULL);
+#else
+        system("pkill -f ffplay > /dev/null 2>&1");
+#endif
+        currentScreen = Screen::EXIT;
+    }
 }
 
 void UIManager::showLibrary() {
