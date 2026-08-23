@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <sstream>
+#include <cstdio>
 #ifndef _WIN32
 #include <chrono>
 #endif
@@ -430,7 +431,7 @@ void UIManager::showMenu() {
 }
 
 void UIManager::showLibrary() {
-    manager.refreshFromFolder("E:\\MusicPlayer\\MusicPlayer\\Music");
+    manager.refreshFromFolder("Music");
 
     std::string title = std::string(ICON_NOTE) + "  SONG LIBRARY";
     drawHeader(title);
