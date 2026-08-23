@@ -3,7 +3,7 @@
 
 int main() {
     MusicManager manager;   // Member 2: core engine
-    manager.refreshFromFolder("E:\\MusicPlayer\\MusicPlayer\\Music");
+    manager.refreshFromFolder("Music");
 
     UIManager ui(manager);  // Member 3: UI & navigation
     ui.run();

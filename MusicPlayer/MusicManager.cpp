@@ -3,8 +3,10 @@
 #include <cctype>
 #include <sstream>
 #include <iomanip>
-#include <windows.h>
 #include <iostream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace {
     // Helper: lowercase a string for case-insensitive comparisons
@@ -37,32 +39,25 @@ bool MusicManager::hasSong(const std::string& title) const {
 }
 
 void MusicManager::refreshFromFolder(const std::string& folderPath) {
-    WIN32_FIND_DATAA findFileData;
-    std::string searchPath = folderPath + "\\*.*";
-    HANDLE hFind = FindFirstFileA(searchPath.c_str(), &findFileData);
-    
-    if (hFind == INVALID_HANDLE_VALUE) {
-        // optionally log a warning, but we'll just return silently to not disrupt the UI
+    if (!fs::exists(folderPath) || !fs::is_directory(folderPath)) {
         return;
     }
-    
-    do {
-        std::string filename = findFileData.cFileName;
-        if (filename.length() > 4) {
-            std::string ext = filename.substr(filename.length() - 4);
-            for (char& c : ext) c = std::tolower(c);
-            
+
+    for (const auto& entry : fs::directory_iterator(folderPath)) {
+        if (entry.is_regular_file()) {
+            std::string ext = entry.path().extension().string();
+            ext = toLower(ext);
+
             if (ext == ".mp3" || ext == ".wav") {
-                std::string title = filename.substr(0, filename.length() - 4);
+                std::string title = entry.path().stem().string();
                 if (!hasSong(title)) {
-                    std::string filepath = folderPath + "\\" + filename;
+                    // Use generic format (which is mostly standard forward slashes, but paths are cross platform now)
+                    std::string filepath = entry.path().string();
                     addSong(title, "Unknown", 0, filepath);
                 }
             }
         }
-    } while (FindNextFileA(hFind, &findFileData) != 0);
-    
-    FindClose(hFind);
+    }
 }
 
 int MusicManager::getSongCount() const {
