@@ -14,7 +14,13 @@ int Song::getDurationSeconds() const { return durationSeconds; }
 std::string Song::getFilePath() const { return filePath; }
 bool Song::isFavorite() const { return favorite; }
 
-void Song::setFavorite(bool fav) { favorite = fav; }
+void Song::setFavorite(bool fav) {
+    favorite = fav;
+}
+
+void Song::setTitle(const std::string& t) { title = t; }
+void Song::setArtist(const std::string& a) { artist = a; }
+void Song::setFilePath(const std::string& path) { filePath = path; }
 
 std::string Song::getFormattedDuration() const {
     int minutes = durationSeconds / 60;

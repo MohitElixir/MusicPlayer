@@ -8,6 +8,12 @@
 
 namespace fs = std::filesystem;
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <cstdio>
+#endif
+
 namespace {
     // Helper: lowercase a string for case-insensitive comparisons
     std::string toLower(const std::string& s) {
@@ -15,6 +21,35 @@ namespace {
         std::transform(result.begin(), result.end(), result.begin(),
                         [](unsigned char c) { return std::tolower(c); });
         return result;
+    }
+
+    int getMediaDuration(const std::string& filepath) {
+#ifdef _WIN32
+        char lenBuf[128] = {0};
+        std::string alias = "len_tmp";
+        std::string cmdOpen = "open \"" + filepath + "\" alias " + alias;
+        mciSendStringA(cmdOpen.c_str(), NULL, 0, NULL);
+        mciSendStringA(("status " + alias + " length").c_str(), lenBuf, sizeof(lenBuf), NULL);
+        mciSendStringA(("close " + alias).c_str(), NULL, 0, NULL);
+        return atoi(lenBuf) / 1000;
+#else
+        std::string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filepath + "\" 2>/dev/null";
+        FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) return 0;
+        char buffer[128];
+        std::string result = "";
+        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+            result += buffer;
+        }
+        pclose(pipe);
+        if (!result.empty()) {
+            try {
+                double seconds = std::stod(result);
+                return static_cast<int>(seconds);
+            } catch (...) {}
+        }
+        return 0;
+#endif
     }
 }
 
@@ -43,25 +78,89 @@ void MusicManager::refreshFromFolder(const std::string& folderPath) {
         return;
     }
 
+    std::vector<Song> newLibrary;
+
     for (const auto& entry : fs::directory_iterator(folderPath)) {
         if (entry.is_regular_file()) {
             std::string ext = entry.path().extension().string();
             ext = toLower(ext);
 
             if (ext == ".mp3" || ext == ".wav") {
-                std::string title = entry.path().stem().string();
-                if (!hasSong(title)) {
-                    // Use generic format (which is mostly standard forward slashes, but paths are cross platform now)
-                    std::string filepath = entry.path().string();
-                    addSong(title, "Unknown", 0, filepath);
+                std::string filepath = entry.path().string();
+                
+                bool found = false;
+                for (const auto& existing : library) {
+                    if (existing.getFilePath() == filepath) {
+                        newLibrary.push_back(existing);
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (!found) {
+                    std::string stem = entry.path().stem().string();
+                    std::string artist = "Unknown";
+                    std::string title = stem;
+                    size_t dashPos = stem.find('-');
+                    if (dashPos != std::string::npos) {
+                        artist = stem.substr(0, dashPos);
+                        title = stem.substr(dashPos + 1);
+                        artist.erase(0, artist.find_first_not_of(" \t"));
+                        artist.erase(artist.find_last_not_of(" \t") + 1);
+                        title.erase(0, title.find_first_not_of(" \t"));
+                        title.erase(title.find_last_not_of(" \t") + 1);
+                    }
+                    
+                    int duration = getMediaDuration(filepath);
+                    newLibrary.emplace_back(title, artist, duration, filepath);
                 }
             }
         }
     }
+    
+    library = newLibrary;
 }
 
 int MusicManager::getSongCount() const {
     return static_cast<int>(library.size());
+}
+
+bool MusicManager::renameSong(int index, const std::string& newFileName) {
+    if (index < 0 || index >= static_cast<int>(library.size())) return false;
+    
+    fs::path oldPath = library[index].getFilePath();
+    fs::path newPath = oldPath.parent_path() / newFileName;
+
+    if (newPath.extension() != ".mp3") {
+        newPath += ".mp3";
+    }
+
+    try {
+        fs::rename(oldPath, newPath);
+    } catch (...) {
+        return false;
+    }
+
+    library[index].setFilePath(newPath.string());
+    
+    std::string stem = newPath.stem().string();
+    size_t dashPos = stem.find('-');
+    if (dashPos != std::string::npos) {
+        std::string artist = stem.substr(0, dashPos);
+        std::string title = stem.substr(dashPos + 1);
+        
+        artist.erase(0, artist.find_first_not_of(" \t"));
+        artist.erase(artist.find_last_not_of(" \t") + 1);
+        title.erase(0, title.find_first_not_of(" \t"));
+        title.erase(title.find_last_not_of(" \t") + 1);
+        
+        library[index].setArtist(artist);
+        library[index].setTitle(title);
+    } else {
+        library[index].setArtist("Unknown");
+        library[index].setTitle(stem);
+    }
+    return true;
 }
 
 const std::vector<Song>& MusicManager::getLibrary() const {

@@ -29,6 +29,9 @@ public:
 
     // Setters
     void setFavorite(bool fav);
+    void setTitle(const std::string& t);
+    void setArtist(const std::string& a);
+    void setFilePath(const std::string& path);
 
     // Utility
     std::string getFormattedDuration() const; // "mm:ss"

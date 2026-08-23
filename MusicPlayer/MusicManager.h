@@ -29,6 +29,7 @@ public:
     int  getSongCount() const;
     bool hasSong(const std::string& title) const;
     void refreshFromFolder(const std::string& folderPath);
+    bool renameSong(int index, const std::string& newFileName);
 
     // Access
     const std::vector<Song>& getLibrary() const;

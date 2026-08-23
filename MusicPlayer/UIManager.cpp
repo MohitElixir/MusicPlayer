@@ -141,7 +141,7 @@ namespace {
 }
 
 void UIManager::clearScreen() {
-    std::cout << "\x1B[2J\x1B[3J\x1B[H" << std::flush;
+    std::cout << "\x1B[H";
 }
 
 UIManager::UIManager(MusicManager& manager)
@@ -220,7 +220,7 @@ void UIManager::drawFooter() const {
 
 void UIManager::pause() {
     setColor(CLR_GRAY);
-    std::cout << "\n  Press ENTER to continue...";
+    std::cout << "\n  Press ENTER to continue...\x1B[0J" << std::flush;
     resetColor();
     std::cin.clear();
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -228,6 +228,7 @@ void UIManager::pause() {
 }
 
 int UIManager::readIntChoice() {
+    std::cout << "\x1B[0J" << std::flush;
     int choice;
     std::cin >> choice;
     if (std::cin.fail()) {
@@ -239,6 +240,7 @@ int UIManager::readIntChoice() {
 
 namespace {
     int readSingleKeyWithTimeout(int timeoutMs) {
+        std::cout << "\x1B[0J" << std::flush;
         int elapsed = 0;
         while (elapsed < timeoutMs) {
 #ifdef _WIN32
@@ -279,6 +281,65 @@ void UIManager::showMenu() {
     drawHeader(title);
     emptyRow();
 
+    if (manager.isPlaying()) {
+        const Song* current = manager.getNowPlaying();
+        
+        // Top banner: Title with notes
+        std::string notes1 = std::string(ICON_NOTE) + " ";
+        std::string npText = "NOW PLAYING: ";
+        std::string songTitle = current->getTitle();
+        std::string notes2 = " " + std::string(ICON_NOTE);
+        
+        int textLen = visualLength(notes1) + visualLength(npText) + visualLength(songTitle) + visualLength(notes2);
+        if (textLen > UI_WIDTH) {
+            int availableForTitle = UI_WIDTH - visualLength(notes1) - visualLength(npText) - visualLength(notes2);
+            songTitle = songTitle.substr(0, availableForTitle - 3) + "...";
+            textLen = visualLength(notes1) + visualLength(npText) + visualLength(songTitle) + visualLength(notes2);
+        }
+        
+        int padding = (UI_WIDTH - textLen) / 2;
+        if (padding < 0) padding = 0;
+
+        setColor(CLR_GREEN);
+        std::cout << "  " << BOX_V;
+        std::cout << std::string(padding, ' ');
+        
+        setColor(CLR_YELLOW);
+        std::cout << notes1;
+
+        setColor(CLR_CYAN);
+        std::cout << npText;
+        
+        setColor(CLR_WHITE);
+        std::cout << songTitle;
+
+        setColor(CLR_YELLOW);
+        std::cout << notes2;
+        
+        closeRow(padding + textLen);
+        
+        // Secondary line: Artist
+        std::string artistText = "by " + current->getArtist();
+        int artistLen = visualLength(artistText);
+        if (artistLen > UI_WIDTH) {
+            artistText = artistText.substr(0, UI_WIDTH - 3) + "...";
+            artistLen = visualLength(artistText);
+        }
+        
+        int artistPad = (UI_WIDTH - artistLen) / 2;
+        if (artistPad < 0) artistPad = 0;
+
+        setColor(CLR_GREEN);
+        std::cout << "  " << BOX_V;
+        std::cout << std::string(artistPad, ' ');
+        
+        setColor(CLR_GRAY);
+        std::cout << artistText;
+        closeRow(artistPad + artistLen);
+        
+        emptyRow();
+    }
+
     auto menuItem = [&](const char* num, const char* icon, const std::string& iconColor, const std::string& text, const std::string& textColor) {
         setColor(CLR_GREEN);
         std::cout << "  " << BOX_V;
@@ -301,11 +362,18 @@ void UIManager::showMenu() {
     };
 
     menuItem("1", ICON_NOTE,   CLR_CYAN,   "View Library",  CLR_WHITE);
-    menuItem("2", ICON_SEARCH, CLR_CYAN,   "Search Songs",  CLR_WHITE);
-    menuItem("3", ICON_PLAY,   CLR_GREEN,  "Now Playing",   CLR_WHITE);
-    menuItem("4", ICON_HEART,  CLR_RED,    "Favorites",     CLR_RED);
-    menuItem("5", ICON_STAR,   CLR_YELLOW, "Playlists",     CLR_WHITE);
-    menuItem("6", ICON_STOP,   CLR_GRAY,   "Exit",          CLR_GRAY);
+    if (manager.isPlaying()) {
+        menuItem("2", ICON_PLAY,   CLR_GREEN,  "Now Playing",   CLR_WHITE);
+        menuItem("3", ICON_SEARCH, CLR_CYAN,   "Search Songs",  CLR_WHITE);
+        menuItem("4", ICON_HEART,  CLR_RED,    "Favorites",     CLR_RED);
+        menuItem("5", ICON_STAR,   CLR_YELLOW, "Playlists",     CLR_WHITE);
+        menuItem("6", ICON_STOP,   CLR_GRAY,   "Exit",          CLR_GRAY);
+    } else {
+        menuItem("2", ICON_SEARCH, CLR_CYAN,   "Search Songs",  CLR_WHITE);
+        menuItem("3", ICON_HEART,  CLR_RED,    "Favorites",     CLR_RED);
+        menuItem("4", ICON_STAR,   CLR_YELLOW, "Playlists",     CLR_WHITE);
+        menuItem("5", ICON_STOP,   CLR_GRAY,   "Exit",          CLR_GRAY);
+    }
 
     emptyRow();
     drawFooter();
@@ -329,19 +397,35 @@ void UIManager::showMenu() {
     std::cout << "Select option: ";
 
     int choice = readIntChoice();
-    if (choice == 1)      currentScreen = Screen::LIBRARY;
-    else if (choice == 2) currentScreen = Screen::SEARCH;
-    else if (choice == 3) currentScreen = Screen::NOW_PLAYING;
-    else if (choice == 4) currentScreen = Screen::FAVORITES;
-    else if (choice == 5) currentScreen = Screen::PLAYLISTS;
-    else if (choice == 6) {
-        manager.stop();
+    if (manager.isPlaying()) {
+        if (choice == 1)      currentScreen = Screen::LIBRARY;
+        else if (choice == 2) currentScreen = Screen::NOW_PLAYING;
+        else if (choice == 3) currentScreen = Screen::SEARCH;
+        else if (choice == 4) currentScreen = Screen::FAVORITES;
+        else if (choice == 5) currentScreen = Screen::PLAYLISTS;
+        else if (choice == 6) {
+            manager.stop();
 #ifdef _WIN32
-        mciSendStringA("close all", NULL, 0, NULL);
+            mciSendStringA("close all", NULL, 0, NULL);
 #else
-        system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
+            system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
 #endif
-        currentScreen = Screen::EXIT;
+            currentScreen = Screen::EXIT;
+        }
+    } else {
+        if (choice == 1)      currentScreen = Screen::LIBRARY;
+        else if (choice == 2) currentScreen = Screen::SEARCH;
+        else if (choice == 3) currentScreen = Screen::FAVORITES;
+        else if (choice == 4) currentScreen = Screen::PLAYLISTS;
+        else if (choice == 5) {
+            manager.stop();
+#ifdef _WIN32
+            mciSendStringA("close all", NULL, 0, NULL);
+#else
+            system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
+#endif
+            currentScreen = Screen::EXIT;
+        }
     }
 }
 
@@ -446,6 +530,7 @@ void UIManager::showSearch() {
     resetColor();
 
     std::string query;
+    std::cout << "\x1B[0J" << std::flush;
     std::getline(std::cin, query);
 
     auto results = manager.searchAll(query);
@@ -652,10 +737,23 @@ void UIManager::showNowPlaying() {
     setColor(CLR_YELLOW); std::cout << "[5]"; visualCc += 3;
     setColor(CLR_WHITE);  std::cout << "+List "; visualCc += 6;
 
-    setColor(CLR_YELLOW); std::cout << "[0]"; visualCc += 3;
-    setColor(CLR_GRAY);   std::cout << "Back"; visualCc += 4;
-
     closeRow(visualCc);
+    
+    // Second row
+    setColor(CLR_GREEN);
+    std::cout << "  " << BOX_V;
+    int visualCc2 = 0;
+    setColor(CLR_WHITE);
+    std::cout << " ";
+    visualCc2 += 1;
+
+    setColor(CLR_YELLOW); std::cout << "[6]"; visualCc2 += 3;
+    setColor(CLR_WHITE);  std::cout << "Rename "; visualCc2 += 7;
+
+    setColor(CLR_YELLOW); std::cout << "[0]"; visualCc2 += 3;
+    setColor(CLR_GRAY);   std::cout << "Back"; visualCc2 += 4;
+
+    closeRow(visualCc2);
     drawFooter();
 
     std::cout << "\n";
@@ -716,6 +814,32 @@ void UIManager::showNowPlaying() {
                 pause();
             }
         }
+    } else if (choice == 6) {
+        std::cout << "\n";
+        setColor(CLR_CYAN);
+        std::cout << "  " << ICON_ARROW << " ";
+        resetColor();
+        std::cout << "New File Name (no .mp3): \x1B[0J" << std::flush;
+        
+        std::string newName;
+        std::getline(std::cin, newName);
+        if (!newName.empty()) {
+#ifdef _WIN32
+            mciSendStringA("close all", NULL, 0, NULL);
+#else
+            system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
+#endif
+            if (manager.renameSong(manager.getNowPlayingIndex(), newName)) {
+                setColor(CLR_GREEN);
+                std::cout << "  Song renamed successfully!\n";
+            } else {
+                setColor(CLR_RED);
+                std::cout << "  Failed to rename file.\n";
+            }
+            forceAudioRestart = true;
+        }
+        resetColor();
+        pause();
     } else if (choice == 0) {
         currentScreen = Screen::MENU;
     }
@@ -830,7 +954,7 @@ void UIManager::showPlaylists() {
         setColor(CLR_CYAN);
         std::cout << "  " << ICON_ARROW << " ";
         resetColor();
-        std::cout << "Playlist name: ";
+        std::cout << "  Playlist name: \x1B[0J" << std::flush;
         std::string name;
         std::getline(std::cin, name);
         manager.addPlaylist(name);
@@ -895,7 +1019,12 @@ void UIManager::showPlaylists() {
 }
 
 void UIManager::run() {
+    Screen lastScreen = Screen::EXIT;
     while (currentScreen != Screen::EXIT) {
+        if (currentScreen != lastScreen) {
+            std::cout << "\x1B[2J\x1B[H";
+            lastScreen = currentScreen;
+        }
         switch (currentScreen) {
             case Screen::MENU:        showMenu();        break;
             case Screen::LIBRARY:     showLibrary();     break;
@@ -906,7 +1035,7 @@ void UIManager::run() {
             default: currentScreen = Screen::EXIT;        break;
         }
     }
-    clearScreen();
+    std::cout << "\x1B[2J\x1B[3J\x1B[H" << std::flush;
     std::cout << "\n\n";
     setColor(CLR_GREEN);
     std::cout << "  " << ICON_NOTE << "  Thanks for using Music Player. Goodbye!  " << ICON_NOTE << "\n\n";
