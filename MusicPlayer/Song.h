@@ -3,39 +3,42 @@
 
 #include <string>
 
+
 // ============================================================
 // Member 1: Data Model
 // Represents a single track's metadata.
 // ============================================================
+using namespace std;
+
 class Song {
 private:
-    std::string title;
-    std::string artist;
+    string title;
+    string artist;
     int durationSeconds; // stored in raw seconds, formatted on output
-    std::string filePath;
+    string filePath;
     bool favorite;
 
 public:
     // Constructors
     Song();
-    Song(const std::string& title, const std::string& artist, int durationSeconds, const std::string& filePath);
+    Song(const string& title, const string& artist, int durationSeconds, const string& filePath);
 
     // Getters
-    std::string getTitle() const;
-    std::string getArtist() const;
+    string getTitle() const;
+    string getArtist() const;
     int getDurationSeconds() const;
-    std::string getFilePath() const;
+    string getFilePath() const;
     bool isFavorite() const;
 
     // Setters
     void setFavorite(bool fav);
-    void setTitle(const std::string& t);
-    void setArtist(const std::string& a);
-    void setFilePath(const std::string& path);
+    void setTitle(const string& t);
+    void setArtist(const string& a);
+    void setFilePath(const string& path);
 
     // Utility
-    std::string getFormattedDuration() const; // "mm:ss"
-    std::string toString() const;             // "[<3] Title - Artist (mm:ss)"
+    string getFormattedDuration() const; // "mm:ss"
+    string toString() const;             // "[<3] Title - Artist (mm:ss)"
 };
 
 #endif // SONG_H

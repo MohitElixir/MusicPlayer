@@ -5,9 +5,12 @@
 #include <string>
 #include "Song.h"
 
+
+using namespace std;
+
 struct Playlist {
-    std::string name;
-    std::vector<int> songIndices;
+    string name;
+    vector<int> songIndices;
 };
 
 // ============================================================
@@ -16,8 +19,8 @@ struct Playlist {
 // ============================================================
 class MusicManager {
 private:
-    std::vector<Song> library;
-    std::vector<Playlist> playlists;
+    vector<Song> library;
+    vector<Playlist> playlists;
     int nowPlayingIndex; // -1 if nothing is playing
 
 public:
@@ -25,28 +28,28 @@ public:
 
     // Track management
     void addSong(const Song& song);
-    void addSong(const std::string& title, const std::string& artist, int durationSeconds, const std::string& filePath);
+    void addSong(const string& title, const string& artist, int durationSeconds, const string& filePath);
     int  getSongCount() const;
-    bool hasSong(const std::string& title) const;
-    void refreshFromFolder(const std::string& folderPath);
-    bool renameSong(int index, const std::string& newFileName);
+    bool hasSong(const string& title) const;
+    void refreshFromFolder(const string& folderPath);
+    bool renameSong(int index, const string& newFileName);
 
     // Access
-    const std::vector<Song>& getLibrary() const;
+    const vector<Song>& getLibrary() const;
     const Song* getSongAt(int index) const;
 
     // Search algorithms (case-insensitive substring match)
-    std::vector<int> searchByTitle(const std::string& query) const;
-    std::vector<int> searchByArtist(const std::string& query) const;
-    std::vector<int> searchAll(const std::string& query) const;
+    vector<int> searchByTitle(const string& query) const;
+    vector<int> searchByArtist(const string& query) const;
+    vector<int> searchAll(const string& query) const;
 
     // Playlists & Favorites
     void toggleFavorite(int index);
-    std::vector<int> getFavorites() const;
+    vector<int> getFavorites() const;
 
-    void addPlaylist(const std::string& name);
+    void addPlaylist(const string& name);
     void addToPlaylist(int playlistIndex, int songIndex);
-    const std::vector<Playlist>& getPlaylists() const;
+    const vector<Playlist>& getPlaylists() const;
 
     // Playback control
     bool play(int index);          // returns false if index invalid
@@ -58,7 +61,7 @@ public:
     void playPrevious();
 
     // Total library runtime, formatted "mm:ss"
-    std::string getTotalRuntimeFormatted() const;
+    string getTotalRuntimeFormatted() const;
 };
 
 #endif // MUSIC_MANAGER_H

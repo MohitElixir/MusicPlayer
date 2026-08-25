@@ -1,13 +1,3 @@
-#include "UIManager.h"
-#include <iostream>
-#include <limits>
-#include <cstdlib>
-#include <iomanip>
-#include <sstream>
-#include <cstdio>
-#ifndef _WIN32
-#include <chrono>
-#endif
 #ifdef _WIN32
 #include <windows.h>
 #include <conio.h>
@@ -18,25 +8,37 @@
 #include <unistd.h>
 #include <fcntl.h>
 #endif
+#include "UIManager.h"
+#include <iostream>
+#include <limits>
+#include <cstdlib>
+#include <iomanip>
+#include <sstream>
+#include <cstdio>
+#ifndef _WIN32
+#include <chrono>
+#endif
+
+using namespace std;
 
 namespace {
 #ifndef _WIN32
-    std::chrono::steady_clock::time_point linuxPlaybackStartTime;
+    chrono::steady_clock::time_point linuxPlaybackStartTime;
     int linuxCurrentDurationMs = 0;
 
-    int getDurationMs(const std::string& filePath) {
-        std::string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filePath + "\" 2>/dev/null";
+    int getDurationMs(const string& filePath) {
+        string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filePath + "\" 2>/dev/null";
         FILE* pipe = popen(cmd.c_str(), "r");
         if (!pipe) return 0;
         char buffer[128];
-        std::string result = "";
+        string result = "";
         while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
             result += buffer;
         }
         pclose(pipe);
         if (!result.empty()) {
             try {
-                double seconds = std::stod(result);
+                double seconds = stod(result);
                 return static_cast<int>(seconds * 1000);
             } catch (...) {}
         }
@@ -47,7 +49,7 @@ namespace {
     const int UI_WIDTH = 64;
 
     // Helper to get visual width of UTF-8 strings (assuming 1 char = 1 width)
-    int visualLength(const std::string& s) {
+    int visualLength(const string& s) {
         int len = 0;
         for (size_t i = 0; i < s.length(); ) {
             unsigned char c = s[i];
@@ -62,20 +64,20 @@ namespace {
     }
 
     // ── ANSI Escape Code Color Helpers ──
-    const std::string ANSI_RESET  = "\x1B[0m";
-    const std::string ANSI_GREEN  = "\x1B[92m"; // Bright Green
-    const std::string ANSI_CYAN   = "\x1B[96m"; // Bright Cyan
-    const std::string ANSI_RED    = "\x1B[91m"; // Bright Red
-    const std::string ANSI_YELLOW = "\x1B[93m"; // Bright Yellow
-    const std::string ANSI_WHITE  = "\x1B[97m"; // Bright White
-    const std::string ANSI_GRAY   = "\x1B[90m"; // Bright Black / Gray
+    const string ANSI_RESET  = "\x1B[0m";
+    const string ANSI_GREEN  = "\x1B[92m"; // Bright Green
+    const string ANSI_CYAN   = "\x1B[96m"; // Bright Cyan
+    const string ANSI_RED    = "\x1B[91m"; // Bright Red
+    const string ANSI_YELLOW = "\x1B[93m"; // Bright Yellow
+    const string ANSI_WHITE  = "\x1B[97m"; // Bright White
+    const string ANSI_GRAY   = "\x1B[90m"; // Bright Black / Gray
 
-    void setColor(const std::string& ansiCode) {
-        std::cout << ansiCode;
+    void setColor(const string& ansiCode) {
+        cout << ansiCode;
     }
 
     void resetColor() {
-        std::cout << ANSI_RESET;
+        cout << ANSI_RESET;
     }
 
     // Map old color constants to ANSI strings
@@ -90,18 +92,18 @@ namespace {
 
 
     // Pad a string to a fixed width (truncate if too long)
-    std::string pad(const std::string& s, int width) {
+    string pad(const string& s, int width) {
         if (static_cast<int>(s.size()) >= width) return s.substr(0, width);
-        return s + std::string(width - s.size(), ' ');
+        return s + string(width - s.size(), ' ');
     }
 
     // Format milliseconds as m:ss
-    std::string formatTime(int ms) {
+    string formatTime(int ms) {
         int totalSec = ms / 1000;
         int m = totalSec / 60;
         int s = totalSec % 60;
-        std::ostringstream oss;
-        oss << m << ":" << std::setfill('0') << std::setw(2) << s;
+        ostringstream oss;
+        oss << m << ":" << setfill('0') << setw(2) << s;
         return oss.str();
     }
 
@@ -125,24 +127,24 @@ namespace {
 
     void hBar(int n, const char* ch = nullptr) {
         if (!ch) ch = BOX_H;
-        for (int i = 0; i < n; ++i) std::cout << ch;
+        for (int i = 0; i < n; ++i) cout << ch;
     }
 
     void closeRow(int used) {
         int remaining = UI_WIDTH - used;
-        if (remaining > 0) std::cout << std::string(remaining, ' ');
+        if (remaining > 0) cout << string(remaining, ' ');
         setColor(CLR_GREEN);
-        std::cout << BOX_V << "\n";
+        cout << BOX_V << "\n";
     }
 
     void emptyRow() {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V << std::string(UI_WIDTH, ' ') << BOX_V << "\n";
+        cout << "  " << BOX_V << string(UI_WIDTH, ' ') << BOX_V << "\n";
     }
 }
 
 void UIManager::clearScreen() {
-    std::cout << "\x1B[H";
+    cout << "\x1B[H";
 }
 
 UIManager::UIManager(MusicManager& manager)
@@ -161,9 +163,9 @@ UIManager::UIManager(MusicManager& manager)
 
 void UIManager::drawDivider() const {
     setColor(CLR_GRAY);
-    std::cout << "  ";
+    cout << "  ";
     hBar(UI_WIDTH, BOX_LH);
-    std::cout << "\n";
+    cout << "\n";
     resetColor();
 }
 
@@ -171,77 +173,77 @@ void UIManager::playSystemAudio(const Song* current) {
     if (!current) return;
 #ifdef _WIN32
     mciSendStringA("close all", NULL, 0, NULL);
-    std::string command = "open \"" + current->getFilePath() + "\" type mpegvideo alias mymusic";
+    string command = "open \"" + current->getFilePath() + "\" type mpegvideo alias mymusic";
     mciSendStringA(command.c_str(), NULL, 0, NULL);
     mciSendStringA("play mymusic", NULL, 0, NULL);
 #else
     system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
-    std::string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";
+    string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";
     system(command.c_str());
-    linuxPlaybackStartTime = std::chrono::steady_clock::now();
+    linuxPlaybackStartTime = chrono::steady_clock::now();
     linuxCurrentDurationMs = getDurationMs(current->getFilePath());
 #endif
 }
 
-void UIManager::drawHeader(const std::string& title) const {
+void UIManager::drawHeader(const string& title) const {
     clearScreen();
-    std::cout << "\n";
+    cout << "\n";
 
     // Top border ╔════╗
     setColor(CLR_GREEN);
-    std::cout << "  " << BOX_TL;
+    cout << "  " << BOX_TL;
     hBar(UI_WIDTH);
-    std::cout << BOX_TR << "\n";
+    cout << BOX_TR << "\n";
 
     // Title row  ║  TITLE  ║
     int titleVisual = visualLength(title);
     int pad1 = (UI_WIDTH - titleVisual) / 2;
     int pad2 = UI_WIDTH - titleVisual - pad1;
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     setColor(CLR_WHITE);
-    std::cout << std::string(pad1, ' ') << title
-              << std::string(pad2, ' ');
+    cout << string(pad1, ' ') << title
+              << string(pad2, ' ');
     setColor(CLR_GREEN);
-    std::cout << BOX_V << "\n";
+    cout << BOX_V << "\n";
 
     // Bottom border ╚════╝
-    std::cout << "  " << BOX_BL;
+    cout << "  " << BOX_BL;
     hBar(UI_WIDTH);
-    std::cout << BOX_BR << "\n";
+    cout << BOX_BR << "\n";
     resetColor();
 }
 
 void UIManager::drawFooter() const {
     setColor(CLR_GREEN);
-    std::cout << "  " << BOX_BL;
+    cout << "  " << BOX_BL;
     hBar(UI_WIDTH);
-    std::cout << BOX_BR << "\n";
+    cout << BOX_BR << "\n";
     resetColor();
 }
 
 void UIManager::pause() {
     setColor(CLR_GRAY);
-    std::cout << "\n  Press ENTER to continue...\x1B[0J" << std::flush;
+    cout << "\n  Press ENTER to continue...\x1B[0J" << flush;
     resetColor();
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cin.get();
+    cin.clear();
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    cin.get();
 }
 
 int UIManager::readIntChoice() {
-    std::cout << "\x1B[0J" << std::flush;
+    cout << "\x1B[0J" << flush;
     int choice;
-    std::cin >> choice;
-    if (std::cin.fail()) {
-        std::cin.clear();
+    cin >> choice;
+    if (cin.fail()) {
+        cin.clear();
     }
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
     return choice;
 }
 
 namespace {
     int readSingleKeyWithTimeout(int timeoutMs) {
-        std::cout << "\x1B[0J" << std::flush;
+        cout << "\x1B[0J" << flush;
         int elapsed = 0;
         while (elapsed < timeoutMs) {
 #ifdef _WIN32
@@ -278,7 +280,7 @@ namespace {
 void UIManager::showMenu() {
     manager.refreshFromFolder("Music");
 
-    std::string title = std::string(ICON_NOTE) + "  MUSIC PLAYER  " + ICON_NOTE;
+    string title = string(ICON_NOTE) + "  MUSIC PLAYER  " + ICON_NOTE;
     drawHeader(title);
     emptyRow();
 
@@ -286,10 +288,10 @@ void UIManager::showMenu() {
         const Song* current = manager.getNowPlaying();
         
         // Top banner: Title with notes
-        std::string notes1 = std::string(ICON_NOTE) + " ";
-        std::string npText = "NOW PLAYING: ";
-        std::string songTitle = current->getTitle();
-        std::string notes2 = " " + std::string(ICON_NOTE);
+        string notes1 = string(ICON_NOTE) + " ";
+        string npText = "NOW PLAYING: ";
+        string songTitle = current->getTitle();
+        string notes2 = " " + string(ICON_NOTE);
         
         int textLen = visualLength(notes1) + visualLength(npText) + visualLength(songTitle) + visualLength(notes2);
         if (textLen > UI_WIDTH) {
@@ -302,25 +304,25 @@ void UIManager::showMenu() {
         if (padding < 0) padding = 0;
 
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
-        std::cout << std::string(padding, ' ');
+        cout << "  " << BOX_V;
+        cout << string(padding, ' ');
         
         setColor(CLR_YELLOW);
-        std::cout << notes1;
+        cout << notes1;
 
         setColor(CLR_CYAN);
-        std::cout << npText;
+        cout << npText;
         
         setColor(CLR_WHITE);
-        std::cout << songTitle;
+        cout << songTitle;
 
         setColor(CLR_YELLOW);
-        std::cout << notes2;
+        cout << notes2;
         
         closeRow(padding + textLen);
         
         // Secondary line: Artist
-        std::string artistText = "by " + current->getArtist();
+        string artistText = "by " + current->getArtist();
         int artistLen = visualLength(artistText);
         if (artistLen > UI_WIDTH) {
             artistText = artistText.substr(0, UI_WIDTH - 3) + "...";
@@ -331,32 +333,32 @@ void UIManager::showMenu() {
         if (artistPad < 0) artistPad = 0;
 
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
-        std::cout << std::string(artistPad, ' ');
+        cout << "  " << BOX_V;
+        cout << string(artistPad, ' ');
         
         setColor(CLR_GRAY);
-        std::cout << artistText;
+        cout << artistText;
         closeRow(artistPad + artistLen);
         
         emptyRow();
     }
 
-    auto menuItem = [&](const char* num, const char* icon, const std::string& iconColor, const std::string& text, const std::string& textColor) {
+    auto menuItem = [&](const char* num, const char* icon, const string& iconColor, const string& text, const string& textColor) {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         int chars = 0;
 
         setColor(CLR_YELLOW);
-        std::string numStr = std::string("   [") + num + "]  ";
-        std::cout << numStr;
+        string numStr = string("   [") + num + "]  ";
+        cout << numStr;
         chars += static_cast<int>(numStr.size());
 
         setColor(iconColor);
-        std::cout << icon << " ";
+        cout << icon << " ";
         chars += 2;
 
         setColor(textColor);
-        std::cout << text;
+        cout << text;
         chars += static_cast<int>(text.size());
 
         closeRow(chars);
@@ -381,21 +383,21 @@ void UIManager::showMenu() {
 
     // Status bar
     setColor(CLR_GRAY);
-    std::cout << "  | ";
+    cout << "  | ";
     setColor(CLR_DGREEN);
-    std::cout << manager.getSongCount() << " songs";
+    cout << manager.getSongCount() << " songs";
     setColor(CLR_GRAY);
-    std::cout << " | Runtime: ";
+    cout << " | Runtime: ";
     setColor(CLR_DGREEN);
-    std::cout << manager.getTotalRuntimeFormatted() << "\n";
+    cout << manager.getTotalRuntimeFormatted() << "\n";
 
-    std::cout << "\n\n\n";
+    cout << "\n\n\n";
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
-    std::cout << "Select option: ";
+    cout << "Select option: ";
 
     int choice = readIntChoice();
     if (manager.isPlaying()) {
@@ -433,53 +435,53 @@ void UIManager::showMenu() {
 void UIManager::showLibrary() {
     manager.refreshFromFolder("Music");
 
-    std::string title = std::string(ICON_NOTE) + "  SONG LIBRARY";
+    string title = string(ICON_NOTE) + "  SONG LIBRARY";
     drawHeader(title);
 
     const auto& songs = manager.getLibrary();
     if (songs.empty()) {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         setColor(CLR_GRAY);
-        std::string msg = "   (Library is empty - add .mp3 files to Music folder)";
-        std::cout << msg;
+        string msg = "   (Library is empty - add .mp3 files to Music folder)";
+        cout << msg;
         closeRow(static_cast<int>(msg.size()));
     } else {
         for (size_t i = 0; i < songs.size(); ++i) {
             setColor(CLR_GREEN);
-            std::cout << "  " << BOX_V;
+            cout << "  " << BOX_V;
             int chars = 0;
 
             if (manager.getNowPlayingIndex() == static_cast<int>(i)) {
                 setColor(CLR_GREEN);
-                std::cout << " " << ICON_PLAY << " ";
+                cout << " " << ICON_PLAY << " ";
                 chars += 3;
             } else {
-                std::cout << "   ";
+                cout << "   ";
                 chars += 3;
             }
 
             setColor(CLR_YELLOW);
-            std::ostringstream num;
+            ostringstream num;
             num << "[" << i + 1 << "]";
-            std::string numStr = num.str();
-            std::cout << std::left << std::setw(5) << numStr;
+            string numStr = num.str();
+            cout << left << setw(5) << numStr;
             chars += 5;
 
             if (songs[i].isFavorite()) {
                 setColor(CLR_RED);
-                std::cout << ICON_HEART << " ";
+                cout << ICON_HEART << " ";
                 chars += 2;
             } else {
-                std::cout << "  ";
+                cout << "  ";
                 chars += 2;
             }
 
             setColor(CLR_WHITE);
-            std::string entry = songs[i].getTitle() + " - " + songs[i].getArtist();
+            string entry = songs[i].getTitle() + " - " + songs[i].getArtist();
             int maxLen = UI_WIDTH - chars - 1;
             if (static_cast<int>(entry.size()) > maxLen) entry = entry.substr(0, maxLen);
-            std::cout << entry;
+            cout << entry;
             chars += static_cast<int>(entry.size());
 
             closeRow(chars);
@@ -489,11 +491,11 @@ void UIManager::showLibrary() {
     emptyRow();
     drawFooter();
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
-    std::cout << "Song # to play, or 0 to go back: ";
+    cout << "Song # to play, or 0 to go back: ";
     int choice = readIntChoice();
 
     if (choice == 0) {
@@ -506,45 +508,45 @@ void UIManager::showLibrary() {
         currentScreen = Screen::NOW_PLAYING;
     } else {
         setColor(CLR_RED);
-        std::cout << "  Invalid selection.\n";
+        cout << "  Invalid selection.\n";
         resetColor();
         pause();
     }
 }
 
 void UIManager::showSearch() {
-    std::string title = std::string(ICON_SEARCH) + "  SEARCH SONGS";
+    string title = string(ICON_SEARCH) + "  SEARCH SONGS";
     drawHeader(title);
 
     setColor(CLR_GREEN);
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     setColor(CLR_WHITE);
-    std::string msg = "   Type a title or artist name:";
-    std::cout << msg;
+    string msg = "   Type a title or artist name:";
+    cout << msg;
     closeRow(static_cast<int>(msg.size()));
     emptyRow();
     drawFooter();
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
 
-    std::string query;
-    std::cout << "\x1B[0J" << std::flush;
-    std::getline(std::cin, query);
+    string query;
+    cout << "\x1B[0J" << flush;
+    getline(cin, query);
 
     auto results = manager.searchAll(query);
 
-    std::string rTitle = std::string(ICON_SEARCH) + "  RESULTS";
+    string rTitle = string(ICON_SEARCH) + "  RESULTS";
     drawHeader(rTitle);
 
     if (results.empty()) {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         setColor(CLR_GRAY);
-        std::string noMatch = "   No matches for \"" + query + "\"";
-        std::cout << noMatch;
+        string noMatch = "   No matches for \"" + query + "\"";
+        cout << noMatch;
         closeRow(static_cast<int>(noMatch.size()));
         emptyRow();
         drawFooter();
@@ -556,19 +558,19 @@ void UIManager::showSearch() {
     for (size_t i = 0; i < results.size(); ++i) {
         const Song* s = manager.getSongAt(results[i]);
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         int chars = 0;
 
         setColor(CLR_YELLOW);
-        std::ostringstream num;
+        ostringstream num;
         num << "   [" << i + 1 << "]  ";
-        std::string numStr = num.str();
-        std::cout << numStr;
+        string numStr = num.str();
+        cout << numStr;
         chars += static_cast<int>(numStr.size());
 
         setColor(CLR_WHITE);
-        std::string entry = s->getTitle() + " - " + s->getArtist();
-        std::cout << entry;
+        string entry = s->getTitle() + " - " + s->getArtist();
+        cout << entry;
         chars += static_cast<int>(entry.size());
 
         closeRow(chars);
@@ -577,11 +579,11 @@ void UIManager::showSearch() {
     emptyRow();
     drawFooter();
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
-    std::cout << "Song # to play, or 0 to go back: ";
+    cout << "Song # to play, or 0 to go back: ";
     int choice = readIntChoice();
 
     if (choice > 0 && choice <= static_cast<int>(results.size())) {
@@ -595,16 +597,16 @@ void UIManager::showSearch() {
 }
 
 void UIManager::showNowPlaying() {
-    std::string title = std::string(ICON_PLAY) + "  NOW PLAYING";
+    string title = string(ICON_PLAY) + "  NOW PLAYING";
     drawHeader(title);
 
     const Song* current = manager.getNowPlaying();
     if (current == nullptr) {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         setColor(CLR_GRAY);
-        std::string msg = "   Nothing is playing. Pick a song first!";
-        std::cout << msg;
+        string msg = "   Nothing is playing. Pick a song first!";
+        cout << msg;
         closeRow(static_cast<int>(msg.size()));
         emptyRow();
         drawFooter();
@@ -616,17 +618,17 @@ void UIManager::showNowPlaying() {
     emptyRow();
 
     // Title
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     setColor(CLR_CYAN);
-    std::cout << "   " << ICON_NOTE << " ";
+    cout << "   " << ICON_NOTE << " ";
     setColor(CLR_WHITE);
-    std::cout << current->getTitle();
+    cout << current->getTitle();
     closeRow(5 + visualLength(current->getTitle()));
 
     // Artist
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     setColor(CLR_GRAY);
-    std::cout << "     " << current->getArtist();
+    cout << "     " << current->getArtist();
     closeRow(5 + visualLength(current->getArtist()));
 
     emptyRow();
@@ -642,22 +644,22 @@ void UIManager::showNowPlaying() {
     positionMs = atoi(posBuf);
 #else
     lengthMs = linuxCurrentDurationMs;
-    auto now = std::chrono::steady_clock::now();
-    positionMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(now - linuxPlaybackStartTime).count());
+    auto now = chrono::steady_clock::now();
+    positionMs = static_cast<int>(chrono::duration_cast<chrono::milliseconds>(now - linuxPlaybackStartTime).count());
     if (positionMs > lengthMs && lengthMs > 0) positionMs = lengthMs;
 #endif
 
-    std::string timeL = formatTime(positionMs);
-    std::string timeR = formatTime(lengthMs);
+    string timeL = formatTime(positionMs);
+    string timeR = formatTime(lengthMs);
 
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     int chars = 0;
     setColor(CLR_GRAY);
-    std::cout << "   " << timeL << " ";
+    cout << "   " << timeL << " ";
     chars += 3 + static_cast<int>(timeL.size()) + 1;
 
     setColor(CLR_GREEN);
-    std::cout << "[";
+    cout << "[";
     chars += 1;
 
     const int BAR_WIDTH = 30;
@@ -665,41 +667,41 @@ void UIManager::showNowPlaying() {
     if (filled > BAR_WIDTH) filled = BAR_WIDTH;
     int empty = BAR_WIDTH - filled;
 
-    for (int i = 0; i < filled; ++i) std::cout << "=";
+    for (int i = 0; i < filled; ++i) cout << "=";
     chars += filled;
 
     if (empty > 0) {
         setColor(CLR_WHITE);
-        std::cout << ">";
+        cout << ">";
         chars += 1;
         empty--;
     }
 
     setColor(CLR_GRAY);
-    for (int i = 0; i < empty; ++i) std::cout << "-";
+    for (int i = 0; i < empty; ++i) cout << "-";
     chars += empty;
 
     setColor(CLR_GREEN);
-    std::cout << "]";
+    cout << "]";
     chars += 1;
 
     setColor(CLR_GRAY);
-    std::cout << " " << timeR;
+    cout << " " << timeR;
     chars += 1 + static_cast<int>(timeR.size());
     closeRow(chars);
 
     emptyRow();
 
     // Liked status
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     int c2 = 0;
     if (current->isFavorite()) {
         setColor(CLR_RED);
-        std::cout << "   " << ICON_HEART << " Liked";
+        cout << "   " << ICON_HEART << " Liked";
         c2 += 3 + 2 + 5;
     } else {
         setColor(CLR_GRAY);
-        std::cout << "   Not Liked";
+        cout << "   Not Liked";
         c2 += 12;
     }
     closeRow(c2);
@@ -716,52 +718,52 @@ void UIManager::showNowPlaying() {
     // Controls display
     drawDivider();
     setColor(CLR_GREEN);
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     int visualCc = 0;
 
     setColor(CLR_WHITE);
-    std::cout << " ";
+    cout << " ";
     visualCc += 1;
 
-    setColor(CLR_YELLOW); std::cout << "[1]"; visualCc += 3;
-    setColor(CLR_WHITE);  std::cout << ICON_STOP << " Stop "; visualCc += 7;
+    setColor(CLR_YELLOW); cout << "[1]"; visualCc += 3;
+    setColor(CLR_WHITE);  cout << ICON_STOP << " Stop "; visualCc += 7;
 
-    setColor(CLR_YELLOW); std::cout << "[2]"; visualCc += 3;
-    setColor(CLR_WHITE);  std::cout << ">> Next "; visualCc += 8;
+    setColor(CLR_YELLOW); cout << "[2]"; visualCc += 3;
+    setColor(CLR_WHITE);  cout << ">> Next "; visualCc += 8;
 
-    setColor(CLR_YELLOW); std::cout << "[3]"; visualCc += 3;
-    setColor(CLR_WHITE);  std::cout << "<< Prev "; visualCc += 8;
+    setColor(CLR_YELLOW); cout << "[3]"; visualCc += 3;
+    setColor(CLR_WHITE);  cout << "<< Prev "; visualCc += 8;
 
-    setColor(CLR_YELLOW); std::cout << "[4]"; visualCc += 3;
-    setColor(CLR_RED);    std::cout << ICON_HEART << " Like "; visualCc += 7;
+    setColor(CLR_YELLOW); cout << "[4]"; visualCc += 3;
+    setColor(CLR_RED);    cout << ICON_HEART << " Like "; visualCc += 7;
 
-    setColor(CLR_YELLOW); std::cout << "[5]"; visualCc += 3;
-    setColor(CLR_WHITE);  std::cout << "+List "; visualCc += 6;
+    setColor(CLR_YELLOW); cout << "[5]"; visualCc += 3;
+    setColor(CLR_WHITE);  cout << "+List "; visualCc += 6;
 
     closeRow(visualCc);
     
     // Second row
     setColor(CLR_GREEN);
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     int visualCc2 = 0;
     setColor(CLR_WHITE);
-    std::cout << " ";
+    cout << " ";
     visualCc2 += 1;
 
-    setColor(CLR_YELLOW); std::cout << "[6]"; visualCc2 += 3;
-    setColor(CLR_WHITE);  std::cout << "Rename "; visualCc2 += 7;
+    setColor(CLR_YELLOW); cout << "[6]"; visualCc2 += 3;
+    setColor(CLR_WHITE);  cout << "Rename "; visualCc2 += 7;
 
-    setColor(CLR_YELLOW); std::cout << "[0]"; visualCc2 += 3;
-    setColor(CLR_GRAY);   std::cout << "Back"; visualCc2 += 4;
+    setColor(CLR_YELLOW); cout << "[0]"; visualCc2 += 3;
+    setColor(CLR_GRAY);   cout << "Back"; visualCc2 += 4;
 
     closeRow(visualCc2);
     drawFooter();
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
-    std::cout << "Choice: ";
+    cout << "Choice: ";
     int choice = readSingleKeyWithTimeout(1000);
     if (choice == -1) {
         return; // timeout: loop around to redraw screen and update progress bar
@@ -775,7 +777,7 @@ void UIManager::showNowPlaying() {
         system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
 #endif
         setColor(CLR_GRAY);
-        std::cout << "  Playback stopped.\n";
+        cout << "  Playback stopped.\n";
         resetColor();
         pause();
         currentScreen = Screen::MENU;
@@ -788,42 +790,42 @@ void UIManager::showNowPlaying() {
     } else if (choice == 4) {
         manager.toggleFavorite(manager.getNowPlayingIndex());
     } else if (choice == 5) {
-        std::cout << "\n";
+        cout << "\n";
         setColor(CLR_WHITE);
-        std::cout << "  Available Playlists:\n";
+        cout << "  Available Playlists:\n";
         auto playlists = manager.getPlaylists();
         if (playlists.empty()) {
             setColor(CLR_GRAY);
-            std::cout << "  (No playlists yet)\n";
+            cout << "  (No playlists yet)\n";
             resetColor();
             pause();
         } else {
             for (size_t i = 0; i < playlists.size(); ++i) {
                 setColor(CLR_YELLOW);
-                std::cout << "  [" << i + 1 << "] ";
+                cout << "  [" << i + 1 << "] ";
                 setColor(CLR_WHITE);
-                std::cout << playlists[i].name << "\n";
+                cout << playlists[i].name << "\n";
             }
             resetColor();
-            std::cout << "  Playlist #: ";
+            cout << "  Playlist #: ";
             int plChoice = readIntChoice();
             if (plChoice > 0 && plChoice <= static_cast<int>(playlists.size())) {
                 manager.addToPlaylist(plChoice - 1, manager.getNowPlayingIndex());
                 setColor(CLR_GREEN);
-                std::cout << "  Added to playlist!\n";
+                cout << "  Added to playlist!\n";
                 resetColor();
                 pause();
             }
         }
     } else if (choice == 6) {
-        std::cout << "\n";
+        cout << "\n";
         setColor(CLR_CYAN);
-        std::cout << "  " << ICON_ARROW << " ";
+        cout << "  " << ICON_ARROW << " ";
         resetColor();
-        std::cout << "New File Name (no .mp3): \x1B[0J" << std::flush;
+        cout << "New File Name (no .mp3): \x1B[0J" << flush;
         
-        std::string newName;
-        std::getline(std::cin, newName);
+        string newName;
+        getline(cin, newName);
         if (!newName.empty()) {
 #ifdef _WIN32
             mciSendStringA("close all", NULL, 0, NULL);
@@ -832,10 +834,10 @@ void UIManager::showNowPlaying() {
 #endif
             if (manager.renameSong(manager.getNowPlayingIndex(), newName)) {
                 setColor(CLR_GREEN);
-                std::cout << "  Song renamed successfully!\n";
+                cout << "  Song renamed successfully!\n";
             } else {
                 setColor(CLR_RED);
-                std::cout << "  Failed to rename file.\n";
+                cout << "  Failed to rename file.\n";
             }
             forceAudioRestart = true;
         }
@@ -847,37 +849,37 @@ void UIManager::showNowPlaying() {
 }
 
 void UIManager::showFavorites() {
-    std::string title = std::string(ICON_HEART) + "  FAVORITES";
+    string title = string(ICON_HEART) + "  FAVORITES";
     drawHeader(title);
 
     auto favs = manager.getFavorites();
     if (favs.empty()) {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         setColor(CLR_GRAY);
-        std::string msg = "   No favorites yet. Like songs with [4] in Now Playing!";
-        std::cout << msg;
+        string msg = "   No favorites yet. Like songs with [4] in Now Playing!";
+        cout << msg;
         closeRow(static_cast<int>(msg.size()));
     } else {
         for (size_t i = 0; i < favs.size(); ++i) {
             setColor(CLR_GREEN);
-            std::cout << "  " << BOX_V;
+            cout << "  " << BOX_V;
             int chars = 0;
 
             setColor(CLR_RED);
-            std::cout << " " << ICON_HEART << " ";
+            cout << " " << ICON_HEART << " ";
             chars += 3;
 
             setColor(CLR_YELLOW);
-            std::ostringstream num;
+            ostringstream num;
             num << "[" << i + 1 << "]";
-            std::cout << std::left << std::setw(5) << num.str();
+            cout << left << setw(5) << num.str();
             chars += 5;
 
             setColor(CLR_WHITE);
-            std::string entry = manager.getSongAt(favs[i])->getTitle()
+            string entry = manager.getSongAt(favs[i])->getTitle()
                 + " - " + manager.getSongAt(favs[i])->getArtist();
-            std::cout << entry;
+            cout << entry;
             chars += static_cast<int>(entry.size());
 
             closeRow(chars);
@@ -887,11 +889,11 @@ void UIManager::showFavorites() {
     emptyRow();
     drawFooter();
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
-    std::cout << "Song # to play, or 0 to go back: ";
+    cout << "Song # to play, or 0 to go back: ";
     int choice = readIntChoice();
     if (choice > 0 && choice <= static_cast<int>(favs.size())) {
         if (manager.getNowPlayingIndex() != favs[choice - 1]) forceAudioRestart = true;
@@ -904,37 +906,37 @@ void UIManager::showFavorites() {
 }
 
 void UIManager::showPlaylists() {
-    std::string title = std::string(ICON_STAR) + "  PLAYLISTS";
+    string title = string(ICON_STAR) + "  PLAYLISTS";
     drawHeader(title);
 
     auto playlists = manager.getPlaylists();
 
     setColor(CLR_GREEN);
-    std::cout << "  " << BOX_V;
+    cout << "  " << BOX_V;
     setColor(CLR_YELLOW);
-    std::cout << "   [1]  ";
+    cout << "   [1]  ";
     setColor(CLR_CYAN);
-    std::string createText = "+ Create New Playlist";
-    std::cout << createText;
+    string createText = "+ Create New Playlist";
+    cout << createText;
     closeRow(8 + static_cast<int>(createText.size()));
 
     for (size_t i = 0; i < playlists.size(); ++i) {
         setColor(CLR_GREEN);
-        std::cout << "  " << BOX_V;
+        cout << "  " << BOX_V;
         int chars = 0;
 
         setColor(CLR_YELLOW);
-        std::ostringstream num;
+        ostringstream num;
         num << "   [" << i + 2 << "]  ";
-        std::string numStr = num.str();
-        std::cout << numStr;
+        string numStr = num.str();
+        cout << numStr;
         chars += static_cast<int>(numStr.size());
 
         setColor(CLR_WHITE);
-        std::ostringstream entry;
+        ostringstream entry;
         entry << playlists[i].name << " (" << playlists[i].songIndices.size() << " songs)";
-        std::string entryStr = entry.str();
-        std::cout << entryStr;
+        string entryStr = entry.str();
+        cout << entryStr;
         chars += static_cast<int>(entryStr.size());
 
         closeRow(chars);
@@ -943,56 +945,56 @@ void UIManager::showPlaylists() {
     emptyRow();
     drawFooter();
 
-    std::cout << "\n";
+    cout << "\n";
     setColor(CLR_CYAN);
-    std::cout << "  " << ICON_ARROW << " ";
+    cout << "  " << ICON_ARROW << " ";
     resetColor();
-    std::cout << "Select, or 0 to go back: ";
+    cout << "Select, or 0 to go back: ";
     int choice = readIntChoice();
 
     if (choice == 1) {
-        std::cout << "\n";
+        cout << "\n";
         setColor(CLR_CYAN);
-        std::cout << "  " << ICON_ARROW << " ";
+        cout << "  " << ICON_ARROW << " ";
         resetColor();
-        std::cout << "  Playlist name: \x1B[0J" << std::flush;
-        std::string name;
-        std::getline(std::cin, name);
+        cout << "  Playlist name: \x1B[0J" << flush;
+        string name;
+        getline(cin, name);
         manager.addPlaylist(name);
         setColor(CLR_GREEN);
-        std::cout << "  Created \"" << name << "\"\n";
+        cout << "  Created \"" << name << "\"\n";
         resetColor();
         pause();
     } else if (choice > 1 && choice <= static_cast<int>(playlists.size()) + 1) {
         int plIndex = choice - 2;
         const auto& pl = playlists[plIndex];
 
-        std::string plTitle = std::string(ICON_STAR) + "  " + pl.name;
+        string plTitle = string(ICON_STAR) + "  " + pl.name;
         drawHeader(plTitle);
 
         if (pl.songIndices.empty()) {
             setColor(CLR_GREEN);
-            std::cout << "  " << BOX_V;
+            cout << "  " << BOX_V;
             setColor(CLR_GRAY);
-            std::string msg = "   (Empty playlist)";
-            std::cout << msg;
+            string msg = "   (Empty playlist)";
+            cout << msg;
             closeRow(static_cast<int>(msg.size()));
         } else {
             for (size_t i = 0; i < pl.songIndices.size(); ++i) {
                 setColor(CLR_GREEN);
-                std::cout << "  " << BOX_V;
+                cout << "  " << BOX_V;
                 int chars = 0;
 
                 setColor(CLR_YELLOW);
-                std::ostringstream num;
+                ostringstream num;
                 num << "   [" << i + 1 << "]  ";
-                std::string numStr = num.str();
-                std::cout << numStr;
+                string numStr = num.str();
+                cout << numStr;
                 chars += static_cast<int>(numStr.size());
 
                 setColor(CLR_WHITE);
-                std::string entry = manager.getSongAt(pl.songIndices[i])->getTitle();
-                std::cout << entry;
+                string entry = manager.getSongAt(pl.songIndices[i])->getTitle();
+                cout << entry;
                 chars += static_cast<int>(entry.size());
 
                 closeRow(chars);
@@ -1002,11 +1004,11 @@ void UIManager::showPlaylists() {
         emptyRow();
         drawFooter();
 
-        std::cout << "\n";
+        cout << "\n";
         setColor(CLR_CYAN);
-        std::cout << "  " << ICON_ARROW << " ";
+        cout << "  " << ICON_ARROW << " ";
         resetColor();
-        std::cout << "Song # to play, or 0 to go back: ";
+        cout << "Song # to play, or 0 to go back: ";
         int sChoice = readIntChoice();
         if (sChoice > 0 && sChoice <= static_cast<int>(pl.songIndices.size())) {
             if (manager.getNowPlayingIndex() != pl.songIndices[sChoice - 1]) forceAudioRestart = true;
@@ -1023,7 +1025,7 @@ void UIManager::run() {
     Screen lastScreen = Screen::EXIT;
     while (currentScreen != Screen::EXIT) {
         if (currentScreen != lastScreen) {
-            std::cout << "\x1B[2J\x1B[H";
+            cout << "\x1B[2J\x1B[H";
             lastScreen = currentScreen;
         }
         switch (currentScreen) {
@@ -1036,9 +1038,9 @@ void UIManager::run() {
             default: currentScreen = Screen::EXIT;        break;
         }
     }
-    std::cout << "\x1B[2J\x1B[3J\x1B[H" << std::flush;
-    std::cout << "\n\n";
+    cout << "\x1B[2J\x1B[3J\x1B[H" << flush;
+    cout << "\n\n";
     setColor(CLR_GREEN);
-    std::cout << "  " << ICON_NOTE << "  Thanks for using Music Player. Goodbye!  " << ICON_NOTE << "\n\n";
+    cout << "  " << ICON_NOTE << "  Thanks for using Music Player. Goodbye!  " << ICON_NOTE << "\n\n";
     resetColor();
 }

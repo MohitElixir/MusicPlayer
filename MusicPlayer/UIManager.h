@@ -3,6 +3,9 @@
 
 #include "MusicManager.h"
 
+
+using namespace std;
+
 enum class Screen {
     MENU,
     LIBRARY,
@@ -20,7 +23,7 @@ private:
     bool forceAudioRestart;
 
     void playSystemAudio(const Song* current);
-    void drawHeader(const std::string& title) const;
+    void drawHeader(const string& title) const;
     void drawDivider() const;
     void drawFooter() const;
     void showMenu();

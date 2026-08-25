@@ -1,6 +1,9 @@
 #include "MusicManager.h"
 #include "UIManager.h"
 
+
+using namespace std;
+
 int main() {
     MusicManager manager;   // Member 2: core engine
     manager.refreshFromFolder("Music");

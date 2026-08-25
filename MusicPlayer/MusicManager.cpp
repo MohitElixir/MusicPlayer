@@ -1,3 +1,8 @@
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <cstdio>
+#endif
 #include "MusicManager.h"
 #include <algorithm>
 #include <cctype>
@@ -6,45 +11,41 @@
 #include <iostream>
 #include <filesystem>
 
-namespace fs = std::filesystem;
+using namespace std;
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <cstdio>
-#endif
+namespace fs = filesystem;
 
 namespace {
     // Helper: lowercase a string for case-insensitive comparisons
-    std::string toLower(const std::string& s) {
-        std::string result = s;
-        std::transform(result.begin(), result.end(), result.begin(),
-                        [](unsigned char c) { return std::tolower(c); });
+    string toLower(const string& s) {
+        string result = s;
+        transform(result.begin(), result.end(), result.begin(),
+                        [](unsigned char c) { return tolower(c); });
         return result;
     }
 
-    int getMediaDuration(const std::string& filepath) {
+    int getMediaDuration(const string& filepath) {
 #ifdef _WIN32
         char lenBuf[128] = {0};
-        std::string alias = "len_tmp";
-        std::string cmdOpen = "open \"" + filepath + "\" alias " + alias;
+        string alias = "len_tmp";
+        string cmdOpen = "open \"" + filepath + "\" alias " + alias;
         mciSendStringA(cmdOpen.c_str(), NULL, 0, NULL);
         mciSendStringA(("status " + alias + " length").c_str(), lenBuf, sizeof(lenBuf), NULL);
         mciSendStringA(("close " + alias).c_str(), NULL, 0, NULL);
         return atoi(lenBuf) / 1000;
 #else
-        std::string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filepath + "\" 2>/dev/null";
+        string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filepath + "\" 2>/dev/null";
         FILE* pipe = popen(cmd.c_str(), "r");
         if (!pipe) return 0;
         char buffer[128];
-        std::string result = "";
+        string result = "";
         while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
             result += buffer;
         }
         pclose(pipe);
         if (!result.empty()) {
             try {
-                double seconds = std::stod(result);
+                double seconds = stod(result);
                 return static_cast<int>(seconds);
             } catch (...) {}
         }
@@ -59,12 +60,12 @@ void MusicManager::addSong(const Song& song) {
     library.push_back(song);
 }
 
-void MusicManager::addSong(const std::string& title, const std::string& artist, int durationSeconds, const std::string& filePath) {
+void MusicManager::addSong(const string& title, const string& artist, int durationSeconds, const string& filePath) {
     library.emplace_back(title, artist, durationSeconds, filePath);
 }
 
-bool MusicManager::hasSong(const std::string& title) const {
-    std::string needle = toLower(title);
+bool MusicManager::hasSong(const string& title) const {
+    string needle = toLower(title);
     for (const auto& s : library) {
         if (toLower(s.getTitle()) == needle) {
             return true;
@@ -73,20 +74,20 @@ bool MusicManager::hasSong(const std::string& title) const {
     return false;
 }
 
-void MusicManager::refreshFromFolder(const std::string& folderPath) {
+void MusicManager::refreshFromFolder(const string& folderPath) {
     if (!fs::exists(folderPath) || !fs::is_directory(folderPath)) {
         return;
     }
 
-    std::vector<Song> newLibrary;
+    vector<Song> newLibrary;
 
     for (const auto& entry : fs::directory_iterator(folderPath)) {
         if (entry.is_regular_file()) {
-            std::string ext = entry.path().extension().string();
+            string ext = entry.path().extension().string();
             ext = toLower(ext);
 
             if (ext == ".mp3" || ext == ".wav") {
-                std::string filepath = entry.path().string();
+                string filepath = entry.path().string();
                 
                 bool found = false;
                 for (const auto& existing : library) {
@@ -98,11 +99,11 @@ void MusicManager::refreshFromFolder(const std::string& folderPath) {
                 }
                 
                 if (!found) {
-                    std::string stem = entry.path().stem().string();
-                    std::string artist = "Unknown";
-                    std::string title = stem;
+                    string stem = entry.path().stem().string();
+                    string artist = "Unknown";
+                    string title = stem;
                     size_t dashPos = stem.find('-');
-                    if (dashPos != std::string::npos) {
+                    if (dashPos != string::npos) {
                         artist = stem.substr(0, dashPos);
                         title = stem.substr(dashPos + 1);
                         artist.erase(0, artist.find_first_not_of(" \t"));
@@ -125,7 +126,7 @@ int MusicManager::getSongCount() const {
     return static_cast<int>(library.size());
 }
 
-bool MusicManager::renameSong(int index, const std::string& newFileName) {
+bool MusicManager::renameSong(int index, const string& newFileName) {
     if (index < 0 || index >= static_cast<int>(library.size())) return false;
     
     fs::path oldPath = library[index].getFilePath();
@@ -143,11 +144,11 @@ bool MusicManager::renameSong(int index, const std::string& newFileName) {
 
     library[index].setFilePath(newPath.string());
     
-    std::string stem = newPath.stem().string();
+    string stem = newPath.stem().string();
     size_t dashPos = stem.find('-');
-    if (dashPos != std::string::npos) {
-        std::string artist = stem.substr(0, dashPos);
-        std::string title = stem.substr(dashPos + 1);
+    if (dashPos != string::npos) {
+        string artist = stem.substr(0, dashPos);
+        string title = stem.substr(dashPos + 1);
         
         artist.erase(0, artist.find_first_not_of(" \t"));
         artist.erase(artist.find_last_not_of(" \t") + 1);
@@ -163,7 +164,7 @@ bool MusicManager::renameSong(int index, const std::string& newFileName) {
     return true;
 }
 
-const std::vector<Song>& MusicManager::getLibrary() const {
+const vector<Song>& MusicManager::getLibrary() const {
     return library;
 }
 
@@ -174,38 +175,38 @@ const Song* MusicManager::getSongAt(int index) const {
     return &library[index];
 }
 
-std::vector<int> MusicManager::searchByTitle(const std::string& query) const {
-    std::vector<int> results;
-    std::string needle = toLower(query);
+vector<int> MusicManager::searchByTitle(const string& query) const {
+    vector<int> results;
+    string needle = toLower(query);
 
     for (size_t i = 0; i < library.size(); ++i) {
-        if (toLower(library[i].getTitle()).find(needle) != std::string::npos) {
+        if (toLower(library[i].getTitle()).find(needle) != string::npos) {
             results.push_back(static_cast<int>(i));
         }
     }
     return results;
 }
 
-std::vector<int> MusicManager::searchByArtist(const std::string& query) const {
-    std::vector<int> results;
-    std::string needle = toLower(query);
+vector<int> MusicManager::searchByArtist(const string& query) const {
+    vector<int> results;
+    string needle = toLower(query);
 
     for (size_t i = 0; i < library.size(); ++i) {
-        if (toLower(library[i].getArtist()).find(needle) != std::string::npos) {
+        if (toLower(library[i].getArtist()).find(needle) != string::npos) {
             results.push_back(static_cast<int>(i));
         }
     }
     return results;
 }
 
-std::vector<int> MusicManager::searchAll(const std::string& query) const {
-    std::vector<int> results;
-    std::string needle = toLower(query);
+vector<int> MusicManager::searchAll(const string& query) const {
+    vector<int> results;
+    string needle = toLower(query);
 
     for (size_t i = 0; i < library.size(); ++i) {
         const Song& s = library[i];
-        if (toLower(s.getTitle()).find(needle) != std::string::npos ||
-            toLower(s.getArtist()).find(needle) != std::string::npos) {
+        if (toLower(s.getTitle()).find(needle) != string::npos ||
+            toLower(s.getArtist()).find(needle) != string::npos) {
             results.push_back(static_cast<int>(i));
         }
     }
@@ -218,8 +219,8 @@ void MusicManager::toggleFavorite(int index) {
     }
 }
 
-std::vector<int> MusicManager::getFavorites() const {
-    std::vector<int> results;
+vector<int> MusicManager::getFavorites() const {
+    vector<int> results;
     for (size_t i = 0; i < library.size(); ++i) {
         if (library[i].isFavorite()) {
             results.push_back(static_cast<int>(i));
@@ -228,7 +229,7 @@ std::vector<int> MusicManager::getFavorites() const {
     return results;
 }
 
-void MusicManager::addPlaylist(const std::string& name) {
+void MusicManager::addPlaylist(const string& name) {
     playlists.push_back({name, {}});
 }
 
@@ -239,7 +240,7 @@ void MusicManager::addToPlaylist(int playlistIndex, int songIndex) {
     }
 }
 
-const std::vector<Playlist>& MusicManager::getPlaylists() const {
+const vector<Playlist>& MusicManager::getPlaylists() const {
     return playlists;
 }
 
@@ -286,7 +287,7 @@ void MusicManager::playPrevious() {
     }
 }
 
-std::string MusicManager::getTotalRuntimeFormatted() const {
+string MusicManager::getTotalRuntimeFormatted() const {
     int totalSeconds = 0;
     for (const auto& s : library) {
         totalSeconds += s.getDurationSeconds();
@@ -296,12 +297,12 @@ std::string MusicManager::getTotalRuntimeFormatted() const {
     int minutes = (totalSeconds % 3600) / 60;
     int seconds = totalSeconds % 60;
 
-    std::ostringstream oss;
+    ostringstream oss;
     if (hours > 0) {
-        oss << hours << "h " << std::setfill('0') << std::setw(2) << minutes << "m "
-            << std::setfill('0') << std::setw(2) << seconds << "s";
+        oss << hours << "h " << setfill('0') << setw(2) << minutes << "m "
+            << setfill('0') << setw(2) << seconds << "s";
     } else {
-        oss << minutes << "m " << std::setfill('0') << std::setw(2) << seconds << "s";
+        oss << minutes << "m " << setfill('0') << setw(2) << seconds << "s";
     }
     return oss.str();
 }
