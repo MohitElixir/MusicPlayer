@@ -10,14 +10,14 @@ Music Player
 ### Method 1: Using Visual Studio Code (Recommended)
 1. Open the project folder in Visual Studio Code.
 2. Press `Ctrl + Shift + B` to run the default build task. This uses the configuration in `.vscode/tasks.json` to compile the project automatically.
-3. Once the build succeeds, an executable named `AudioPlayer.exe` will be generated in the root directory.
+3. Once the build succeeds, an executable named `test_run.exe` will be generated in the root directory.
 4. Open the VS Code integrated terminal (`Ctrl + \``) and run the program:
-   .\AudioPlayer.exe
+   .\test_run.exe
 
 ### Method 2: Using the Command Line
 If you prefer compiling manually via the command prompt or terminal (ensure your compiler is in your system PATH), navigate to the root directory of this project and run the following command:
 
-g++ -g -std=c++17 MusicPlayer\*.cpp -o AudioPlayer.exe -lwinmm
+g++ -g -std=c++17 MusicPlayer\*.cpp -o test_run.exe -lwinmm
 
 Then, run the generated executable:
-.\AudioPlayer.exe
+.\test_run.exe

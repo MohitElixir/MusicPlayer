@@ -1,17 +1,157 @@
+#pragma once
+#include <string>
+#include <vector>
+#include <iostream>
+
+// ============================================================
+// Song: Concrete Class
+// ============================================================
+class Song {
+private:
+    std::string title;
+    std::string artist;
+    int durationSeconds;
+    std::string filePath;
+    bool favorite;
+
+public:
+    Song();
+    Song(const std::string& title, const std::string& artist, int durationSeconds, const std::string& filePath);
+
+    std::string getTitle() const;
+    std::string getArtist() const;
+    int getDurationSeconds() const;
+    std::string getFilePath() const;
+    bool isFavorite() const;
+
+    void setFavorite(bool fav);
+    void setTitle(const std::string& t);
+    void setArtist(const std::string& a);
+    void setFilePath(const std::string& path);
+
+    std::string getFormattedDuration() const;
+
+    bool operator==(const Song& other) const;
+    friend std::ostream& operator<<(std::ostream& os, const Song& song);
+};
+
+// ============================================================
+// Playlist Struct
+// ============================================================
+struct Playlist {
+    std::string name;
+    std::vector<int> songIndices;
+};
+
+// ============================================================
+// Core Engine
+// ============================================================
+class MusicManager {
+private:
+    std::vector<Song> library;
+    std::vector<Playlist> playlists;
+    int nowPlayingIndex; // -1 if nothing is playing
+    std::string dataFilePath;
+
+public:
+    MusicManager();
+
+    void addSong(const Song& song);
+    void addSong(const std::string& title, const std::string& artist, int durationSeconds, const std::string& filePath);
+    int getSongCount() const;
+    bool hasSong(const std::string& title) const;
+    void refreshFromFolder(const std::string& folderPath);
+    bool renameSong(int index, const std::string& newFileName);
+
+    const std::vector<Song>& getLibrary() const;
+    const Song* getSongAt(int index) const;
+
+    std::vector<int> searchByTitle(const std::string& query) const;
+    std::vector<int> searchByArtist(const std::string& query) const;
+    std::vector<int> searchAll(const std::string& query) const;
+
+    void toggleFavorite(int index);
+    std::vector<int> getFavorites() const;
+
+    void addPlaylist(const std::string& name);
+    void addToPlaylist(int playlistIndex, int songIndex);
+    const std::vector<Playlist>& getPlaylists() const;
+
+    bool play(int index);
+    void stop();
+    bool isPlaying() const;
+    
+    const Song* getNowPlaying() const;
+    int getNowPlayingIndex() const;
+    void playNext();
+    void playPrevious();
+
+    std::string getTotalRuntimeFormatted() const;
+
+    void renameSong(int index, const std::string& newTitle, const std::string& newArtist);
+
+    void saveData() const;
+    void loadData();
+};
+
+
+
 #ifdef _WIN32
 #include <windows.h>
 #else
 #include <cstdio>
 #endif
-#include "MusicManager.h"
-#include <algorithm>
-#include <cctype>
+#include <string>
+#include <iostream>
 #include <sstream>
 #include <iomanip>
-#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <fstream>
 
 using namespace std;
+
+Song::Song()
+    : title("Unknown Title"), artist("Unknown Artist"), durationSeconds(0), filePath(""), favorite(false) {
+}
+
+Song::Song(const std::string& title, const std::string& artist, int durationSeconds, const std::string& filePath)
+    : title(title), artist(artist), durationSeconds(durationSeconds), filePath(filePath), favorite(false) {
+}
+
+std::string Song::getTitle() const { return title; }
+std::string Song::getArtist() const { return artist; }
+int Song::getDurationSeconds() const { return durationSeconds; }
+std::string Song::getFilePath() const { return filePath; }
+bool Song::isFavorite() const { return favorite; }
+
+void Song::setFavorite(bool fav) { favorite = fav; }
+void Song::setTitle(const std::string& t) { title = t; }
+void Song::setArtist(const std::string& a) { artist = a; }
+void Song::setFilePath(const std::string& path) { filePath = path; }
+
+std::string Song::getFormattedDuration() const {
+    int minutes = durationSeconds / 60;
+    int seconds = durationSeconds % 60;
+
+    std::ostringstream oss;
+    oss << minutes << ":" << std::setfill('0') << std::setw(2) << seconds;
+    return oss.str();
+}
+
+bool Song::operator==(const Song& other) const {
+    return (title == other.title && artist == other.artist && durationSeconds == other.durationSeconds);
+}
+
+std::ostream& operator<<(std::ostream& os, const Song& song) {
+    if (song.isFavorite()) os << "[<3] ";
+    os << song.getTitle() << " - " << song.getArtist() << " (" << song.getFormattedDuration() << ")";
+    return os;
+}
+
+
 
 namespace fs = filesystem;
 
@@ -54,7 +194,7 @@ namespace {
     }
 }
 
-MusicManager::MusicManager() : nowPlayingIndex(-1) {}
+MusicManager::MusicManager() : nowPlayingIndex(-1), dataFilePath("userdata.txt") {}
 
 void MusicManager::addSong(const Song& song) {
     library.push_back(song);
@@ -72,6 +212,14 @@ bool MusicManager::hasSong(const string& title) const {
         }
     }
     return false;
+}
+
+void MusicManager::renameSong(int index, const string& newTitle, const string& newArtist) {
+    if (index >= 0 && index < library.size()) {
+        library[index].setTitle(newTitle);
+        library[index].setArtist(newArtist);
+        saveData();
+    }
 }
 
 void MusicManager::refreshFromFolder(const string& folderPath) {
@@ -178,7 +326,6 @@ const Song* MusicManager::getSongAt(int index) const {
 vector<int> MusicManager::searchByTitle(const string& query) const {
     vector<int> results;
     string needle = toLower(query);
-
     for (size_t i = 0; i < library.size(); ++i) {
         if (toLower(library[i].getTitle()).find(needle) != string::npos) {
             results.push_back(static_cast<int>(i));
@@ -190,7 +337,6 @@ vector<int> MusicManager::searchByTitle(const string& query) const {
 vector<int> MusicManager::searchByArtist(const string& query) const {
     vector<int> results;
     string needle = toLower(query);
-
     for (size_t i = 0; i < library.size(); ++i) {
         if (toLower(library[i].getArtist()).find(needle) != string::npos) {
             results.push_back(static_cast<int>(i));
@@ -202,11 +348,9 @@ vector<int> MusicManager::searchByArtist(const string& query) const {
 vector<int> MusicManager::searchAll(const string& query) const {
     vector<int> results;
     string needle = toLower(query);
-
     for (size_t i = 0; i < library.size(); ++i) {
-        const Song& s = library[i];
-        if (toLower(s.getTitle()).find(needle) != string::npos ||
-            toLower(s.getArtist()).find(needle) != string::npos) {
+        if (toLower(library[i].getTitle()).find(needle) != string::npos ||
+            toLower(library[i].getArtist()).find(needle) != string::npos) {
             results.push_back(static_cast<int>(i));
         }
     }
@@ -246,6 +390,9 @@ const vector<Playlist>& MusicManager::getPlaylists() const {
 
 bool MusicManager::play(int index) {
     if (index < 0 || index >= static_cast<int>(library.size())) {
+        return false;
+    }
+    if (!fs::exists(library[index].getFilePath())) {
         return false;
     }
     nowPlayingIndex = index;
@@ -306,3 +453,73 @@ string MusicManager::getTotalRuntimeFormatted() const {
     }
     return oss.str();
 }
+
+void MusicManager::saveData() const {
+    ofstream outFile(dataFilePath);
+    if (!outFile) return;
+    
+    // Save favorites
+    vector<int> favs = getFavorites();
+    outFile << favs.size() << "\n";
+    for (int idx : favs) {
+        outFile << library[idx].getFilePath() << "\n";
+    }
+    
+    // Save playlists
+    outFile << playlists.size() << "\n";
+    for (const auto& pl : playlists) {
+        outFile << pl.name << "\n";
+        outFile << pl.songIndices.size() << "\n";
+        for (int idx : pl.songIndices) {
+            outFile << library[idx].getFilePath() << "\n";
+        }
+    }
+}
+
+void MusicManager::loadData() {
+    ifstream inFile(dataFilePath);
+    if (!inFile) return;
+
+    size_t favCount;
+    if (!(inFile >> favCount)) return;
+    inFile.ignore();
+
+    for (size_t i = 0; i < favCount; ++i) {
+        string path;
+        getline(inFile, path);
+        for (auto& s : library) {
+            if (s.getFilePath() == path) {
+                s.setFavorite(true);
+                break;
+            }
+        }
+    }
+
+    size_t plCount;
+    if (!(inFile >> plCount)) return;
+    inFile.ignore();
+    
+    playlists.clear();
+    for (size_t i = 0; i < plCount; ++i) {
+        string name;
+        getline(inFile, name);
+        size_t sCount;
+        inFile >> sCount;
+        inFile.ignore();
+        
+        Playlist pl;
+        pl.name = name;
+        for (size_t j = 0; j < sCount; ++j) {
+            string path;
+            getline(inFile, path);
+            for (size_t k = 0; k < library.size(); ++k) {
+                if (library[k].getFilePath() == path) {
+                    pl.songIndices.push_back(k);
+                    break;
+                }
+            }
+        }
+        playlists.push_back(pl);
+    }
+}
+
