@@ -21,3 +21,8 @@ g++ -g -std=c++17 MusicPlayer\*.cpp -o AudioPlayer.exe -lwinmm
 
 Then, run the generated executable:
 .\AudioPlayer.exe
+
+If g++ is installed but not correctly configured, open MSYS2 UCRT64 from the Start Menu and run:
+cd /h/MusicPlayer/MusicPlayer
+g++ -g -std=c++17 *.cpp -o ../AudioPlayer.exe -lwinmm
+../AudioPlayer.exe
