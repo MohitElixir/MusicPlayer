@@ -1,8 +1,6 @@
 #pragma once
 #include <string>
-#include <vector>
 #include <iostream>
-#include <iomanip>
 #include <cstdlib>
 #include <limits>
 
@@ -21,9 +19,11 @@
 
 #include "../song_management/MusicManager.cpp"
 
+using namespace std;
+
 namespace UIUtils {
     // Helper to get visual width of UTF-8 strings
-    int visualLength(const std::string& s) {
+    int visualLength(const string& s) {
         int len = 0;
         for (size_t i = 0; i < s.length(); ) {
             unsigned char c = s[i];
@@ -39,29 +39,29 @@ namespace UIUtils {
 
     void clearScreen() {
         // Move cursor to home (top-left) instead of system("cls") to prevent flickering
-        std::cout << "\x1B[H";
+        cout << "\x1B[H";
     }
 
     void pause() {
-        std::cout << "\n  Press ENTER to continue...\x1B[J" << std::flush;
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cin.get();
+        cout << "\n  Press ENTER to continue...\x1B[J" << flush;
+        cin.clear();
+        cin.ignore((numeric_limits<streamsize>::max)(), '\n');
+        cin.get();
     }
 
     int readIntChoice() {
-        std::cout << "\x1B[J" << std::flush; // Clear from cursor to end of screen before prompt
+        cout << "\x1B[J" << flush; // Clear from cursor to end of screen before prompt
         int choice;
-        std::cin >> choice;
-        if (std::cin.fail()) {
-            std::cin.clear();
+        cin >> choice;
+        if (cin.fail()) {
+            cin.clear();
         }
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        cin.ignore((numeric_limits<streamsize>::max)(), '\n');
         return choice;
     }
 
     int readSingleKeyWithTimeout(int timeoutMs) {
-        std::cout << "\x1B[J" << std::flush; // Clear from cursor to end of screen
+        cout << "\x1B[J" << flush; // Clear from cursor to end of screen
         int elapsed = 0;
         while (elapsed < timeoutMs) {
 #ifdef _WIN32
@@ -94,35 +94,35 @@ namespace UIUtils {
         return -1; // timeout
     }
 
-    void printBoxTop(const std::string& title) {
+    void printBoxTop(const string& title) {
         clearScreen();
-        std::cout << "\n  ╔════════════════════════════════════════════════════════════════╗\n";
+        cout << "\n  ╔════════════════════════════════════════════════════════════════╗\n";
         
         int totalWidth = 64;
         int titleLen = visualLength(title);
         int padding = (totalWidth - titleLen) / 2;
         int rightPad = totalWidth - titleLen - padding;
         
-        std::cout << "  ║" << std::string(padding, ' ') << title << std::string(rightPad, ' ') << "║\n";
-        std::cout << "  ╚════════════════════════════════════════════════════════════════╝\n";
-        std::cout << "  ║                                                                ║\n";
+        cout << "  ║" << string(padding, ' ') << title << string(rightPad, ' ') << "║\n";
+        cout << "  ╚════════════════════════════════════════════════════════════════╝\n";
+        cout << "  ║                                                                ║\n";
     }
 
-    void printBoxLine(const std::string& text) {
+    void printBoxLine(const string& text) {
         int totalWidth = 64;
         int len = visualLength(text);
         int padding = totalWidth - len;
         if (padding < 0) padding = 0;
         
-        std::cout << "  ║ " << text << std::string(padding - 1, ' ') << "║\n";
+        cout << "  ║ " << text << string(padding - 1, ' ') << "║\n";
     }
 
     void printBoxBottom() {
-        std::cout << "  ║                                                                ║\n";
-        std::cout << "  ╚════════════════════════════════════════════════════════════════╝\n";
+        cout << "  ║                                                                ║\n";
+        cout << "  ╚════════════════════════════════════════════════════════════════╝\n";
     }
 
-    void printHeader(const std::string& title) {
+    void printHeader(const string& title) {
         printBoxTop(title);
     }
     
@@ -131,12 +131,12 @@ namespace UIUtils {
         if (!current) return;
 #ifdef _WIN32
         mciSendStringA("close all", NULL, 0, NULL);
-        std::string command = "open \"" + current->getFilePath() + "\" type mpegvideo alias mymusic";
+        string command = "open \"" + current->getFilePath() + "\" type mpegvideo alias mymusic";
         mciSendStringA(command.c_str(), NULL, 0, NULL);
         mciSendStringA("play mymusic", NULL, 0, NULL);
 #else
         system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
-        std::string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";
+        string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";
         system(command.c_str());
 #endif
     }
