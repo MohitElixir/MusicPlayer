@@ -130,10 +130,9 @@ namespace UIUtils {
     void playSystemAudio(const Song* current) {
         if (!current) return;
 #ifdef _WIN32
-        mciSendStringA("close all", NULL, 0, NULL);
-        string command = "open \"" + current->getFilePath() + "\" type mpegvideo alias mymusic";
-        mciSendStringA(command.c_str(), NULL, 0, NULL);
-        mciSendStringA("play mymusic", NULL, 0, NULL);
+        system("taskkill /f /im ffplay.exe > NUL 2>&1");
+        string command = "start /B ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > NUL 2>&1";
+        system(command.c_str());
 #else
         system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
         string command = "ffplay -nodisp -autoexit \"" + current->getFilePath() + "\" > /dev/null 2>&1 &";

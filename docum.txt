@@ -1,0 +1,156 @@
+========================================================================
+                     MUSIC PLAYER PROJECT DOCUMENTATION
+========================================================================
+
+This document provides a comprehensive overview of the Music Player application
+architecture, file structures, and compile-and-run guidelines. It highlights 
+and explains the header files (Standard C++, System-Specific, and Local 
+Dependencies) used in every component of the application.
+
+------------------------------------------------------------------------
+1. PROJECT ARCHITECTURE & DESIGN SYSTEM
+------------------------------------------------------------------------
+The Music Player is a terminal-based, cross-platform audio player written in
+C++17. The design uses a Unity Build model (where main.cpp includes all sub-CPP
+files in dependency order) to generate a single self-contained executable.
+
+The audio engine relies on background command-line calls to FFmpeg ('ffplay' 
+and 'ffprobe') to provide robust, format-independent audio playback and 
+duration querying on both Windows and Linux, resolving issues with legacy APIs.
+
+------------------------------------------------------------------------
+2. MODULE-BY-MODULE HEADER ANALYSIS
+------------------------------------------------------------------------
+
+A. MAIN ENTRY POINT (main.cpp)
+   ===========================
+   This is the entry file that configures the terminal terminal mode (UTF-8,
+   ENABLE_VIRTUAL_TERMINAL_PROCESSING) and runs the central switch-based
+   screen navigation loop.
+
+   Header files used:
+   - <windows.h> (System-specific: Windows API)
+     Used conditionally (#ifdef _WIN32) to get console output handles, 
+     enable UTF-8 output via SetConsoleOutputCP(65001), and enable ANSI 
+     escape sequences by setting console modes (ENABLE_VIRTUAL_TERMINAL_PROCESSING).
+   - <iostream> (Standard Library)
+     Used for basic stream output printing.
+   - Local Dependency Includes:
+     * "song_management/MusicManager.cpp" (State and database core)
+     * "ui/Screen.cpp" (UI screen navigation state enum definitions)
+     * "ui/UIUtils.cpp" (UI console rendering box helper utilities)
+     * "ui/*Section.cpp" (Separate files managing screen-specific views)
+
+B. SONG MANAGEMENT MODULE (MusicManager.cpp / Song Class)
+   =====================================================
+   Defines the database layer, song structures, playlist entities, and manages
+   saving/loading persistent configuration files.
+
+   Header files used:
+   - <string> (Standard Library)
+     Used to define the std::string class for holding text-based metadata like
+     song titles, artist names, database file paths, and runtime formats.
+   - <vector> (Standard Library)
+     Used to instantiate std::vector templates for library listings, 
+     playlists, indices, and search results.
+   - <iostream> (Standard Library)
+     Used to enable terminal printing, output stream formatting, and custom
+     friend stream operators (operator<<) for Song printing.
+   - <chrono> (Standard Library)
+     Added to track audio playback progress using high-resolution time points
+     (std::chrono::steady_clock) since ffplay processes run asynchronously.
+   - <cstdio> (Standard Library)
+     Includes the standard pipes API (popen/pclose on Linux, mapped to 
+     _popen/_pclose on Windows) for spawning background ffprobe subprocesses
+     to query media metadata safely.
+   - <sstream> (Standard Library)
+     Provides ostringstream for string composition and dynamic time formatting.
+   - <iomanip> (Standard Library)
+     Provides stream manipulators (setfill, setw) to output standard time formatting
+     such as padded mm:ss values.
+   - <algorithm> (Standard Library)
+     Used to access std::transform to convert text queries to lowercase for
+     case-insensitive comparisons.
+   - <cctype> (Standard Library)
+     Provides functions like tolower for single-character casing checks.
+   - <filesystem> (Standard Library)
+     Namespaced as std::filesystem (fs). Provides directory iterators to read 
+     local files and path management classes to manipulate extensions.
+   - <fstream> (Standard Library)
+     Provides file streams (ifstream/ofstream) to serialize and deserialize 
+     playlists and favorites information to "userdata.txt".
+   - <windows.h> (System-specific: Windows API)
+     Included conditionally under Windows for OS-level utility declarations.
+
+C. UI UTILITIES INTERFACE (UIUtils.cpp)
+   ====================================
+   Controls console buffer manipulation, cursor positioning, Unicode boundary
+   length calculation, non-blocking input timeouts, and background audio execution.
+
+   Header files used:
+   - <string> (Standard Library)
+     Handles terminal borders, box frames, and text alignment checks.
+   - <iostream> (Standard Library)
+     Manages cout buffer flushing for screen redraws and terminal layout.
+   - <cstdlib> (Standard Library)
+     Accesses system() to kill active audio players or launch new playback commands.
+   - <limits> (Standard Library)
+     Provides numeric_limits to ignore leftovers in input buffers during user input.
+   - <chrono> (Standard Library)
+     Used on POSIX platforms to handle keypress timeout delay limits.
+   - <windows.h> (System-specific: Windows API)
+     Provides Windows low-level kernel definitions.
+   - <conio.h> (System-specific: MSVC/MinGW)
+     Provides _kbhit() and _getch() on Windows to check for user keyboard inputs
+     without halting execution threads.
+   - <termios.h>, <unistd.h>, <fcntl.h> (System-specific: POSIX/Linux)
+     Provides low-level POSIX terminal configurations and non-blocking IO 
+     descriptors to mimic _kbhit() and _getch() input patterns on Linux.
+   - Local Dependency Includes:
+     * "../song_management/MusicManager.cpp" (Reads state configurations)
+
+D. NOW PLAYING CONTROL PANEL (NowPlayingSection.cpp)
+   =================================================
+   Draws the audio control screen, handles progress bars, and coordinates autoplay.
+
+   Header files used:
+   - <iostream> (Standard Library)
+     Used to print graphical panels, option selection boxes, and console prompt.
+   - <string> (Standard Library)
+     Manages UI text lines, duration labels, and character progress bar generation.
+   - <iomanip> (Standard Library)
+     Provides setfill/setw manipulators to build formatted timestamps.
+   - <sstream> (Standard Library)
+     Provides ostringstream to format playing progress times.
+   - <windows.h> (System-specific: Windows API)
+     Provides Windows definitions conditionally.
+   - Local Dependency Includes:
+     * "../song_management/MusicManager.cpp" (Checks current state offsets)
+     * "Screen.cpp" (Routes navigation destinations)
+     * "UIUtils.cpp" (Clears screen buffers and spawns background tasks)
+
+E. NAVIGATIONAL UI PARTS (MenuSection.cpp, LibrarySection.cpp, etc.)
+   =================================================================
+   Manages search lookups, favorites lists, playlist additions, and screen selection.
+
+   Header files used:
+   - <iostream> (Standard Library)
+     Prints structural boxes, options, lists, and input prompts.
+   - <string> (Standard Library)
+     Composes lists and menu borders.
+   - Local Dependency Includes:
+     * "../song_management/MusicManager.cpp" (Alters databases, saves configs)
+     * "Screen.cpp" (Navigates to next panel destinations)
+     * "UIUtils.cpp" (Formats boxes, reads inputs, and routes playback calls)
+
+------------------------------------------------------------------------
+3. AUDIO PROCESS WORKFLOW
+------------------------------------------------------------------------
+When a song is triggered, the system performs the following header-backed steps:
+1. MusicManager queries duration using popen (<cstdio>) to invoke 'ffprobe'.
+2. UIUtils spawns background 'ffplay' with system() (<cstdlib>) via "start /B"
+   on Windows, or "&" on Linux.
+3. MusicManager starts a chrono timer (<chrono>) to monitor elapsed time.
+4. NowPlayingSection checks elapsed time vs duration, drawing progress via 
+   setfill (<iomanip>) and automatically advancing songs when finished.
+========================================================================

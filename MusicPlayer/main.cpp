@@ -69,6 +69,12 @@ int main() {
 
     manager.saveData();
 
+#ifdef _WIN32
+    system("taskkill /f /im ffplay.exe > NUL 2>&1");
+#else
+    system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
+#endif
+
     cout << "\nThanks for using Music Player. Goodbye!\n";
     return 0;
 }

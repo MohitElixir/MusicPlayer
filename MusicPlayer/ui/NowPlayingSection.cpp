@@ -39,19 +39,15 @@ Screen showNowPlaying(MusicManager& manager) {
     UIUtils::printBoxLine("    " + current->getArtist());
     UIUtils::printBoxLine("");
     
-    // Fetch dynamic position and length from MCI
-    int lengthMs = 0;
-    int positionMs = 0;
-#ifdef _WIN32
-    char lenBuf[128] = {0}, posBuf[128] = {0};
-    mciSendStringA("status mymusic length", lenBuf, sizeof(lenBuf), NULL);
-    mciSendStringA("status mymusic position", posBuf, sizeof(posBuf), NULL);
-    lengthMs  = atoi(lenBuf);
-    positionMs = atoi(posBuf);
-#else
-    lengthMs = current->getDurationSeconds() * 1000;
-    positionMs = 0; 
-#endif
+    int lengthMs = current->getDurationSeconds() * 1000;
+    int positionMs = manager.getPlaybackElapsedMs();
+    if (lengthMs > 0 && positionMs >= lengthMs) {
+        positionMs = lengthMs;
+        // Auto-play next song
+        manager.playNext();
+        UIUtils::playSystemAudio(manager.getNowPlaying());
+        return Screen::NOW_PLAYING;
+    }
 
     string timeL = formatTime(positionMs);
     string timeR = formatTime(lengthMs > 0 ? lengthMs : current->getDurationSeconds() * 1000);
@@ -100,7 +96,9 @@ Screen showNowPlaying(MusicManager& manager) {
         case 1:
             manager.stop();
 #ifdef _WIN32
-            mciSendStringA("close all", NULL, 0, NULL);
+            system("taskkill /f /im ffplay.exe > NUL 2>&1");
+#else
+            system("killall -9 ffplay > /dev/null 2>&1 || pkill -9 -f ffplay > /dev/null 2>&1");
 #endif
             return Screen::MENU;
         case 2:

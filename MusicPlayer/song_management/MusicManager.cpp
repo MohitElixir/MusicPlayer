@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 // ============================================================
 // Song: Concrete Class
@@ -52,6 +53,7 @@ private:
     std::vector<Playlist> playlists;
     int nowPlayingIndex; // -1 if nothing is playing
     std::string dataFilePath;
+    std::chrono::steady_clock::time_point playbackStartTime;
 
 public:
     MusicManager();
@@ -80,6 +82,7 @@ public:
     bool play(int index);
     void stop();
     bool isPlaying() const;
+    int getPlaybackElapsedMs() const;
     
     const Song* getNowPlaying() const;
     int getNowPlayingIndex() const;
@@ -101,9 +104,10 @@ public:
 #define NOMINMAX
 #endif
 #include <windows.h>
-#else
-#include <cstdio>
+#define popen _popen
+#define pclose _pclose
 #endif
+#include <cstdio>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -168,16 +172,12 @@ namespace {
     }
 
     int getMediaDuration(const string& filepath) {
+        string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filepath + "\"";
 #ifdef _WIN32
-        char lenBuf[128] = {0};
-        string alias = "len_tmp";
-        string cmdOpen = "open \"" + filepath + "\" alias " + alias;
-        mciSendStringA(cmdOpen.c_str(), NULL, 0, NULL);
-        mciSendStringA(("status " + alias + " length").c_str(), lenBuf, sizeof(lenBuf), NULL);
-        mciSendStringA(("close " + alias).c_str(), NULL, 0, NULL);
-        return atoi(lenBuf) / 1000;
+        cmd += " 2>NUL";
 #else
-        string cmd = "ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"" + filepath + "\" 2>/dev/null";
+        cmd += " 2>/dev/null";
+#endif
         FILE* pipe = popen(cmd.c_str(), "r");
         if (!pipe) return 0;
         char buffer[128];
@@ -193,7 +193,6 @@ namespace {
             } catch (...) {}
         }
         return 0;
-#endif
     }
 }
 
@@ -399,6 +398,7 @@ bool MusicManager::play(int index) {
         return false;
     }
     nowPlayingIndex = index;
+    playbackStartTime = std::chrono::steady_clock::now();
     return true;
 }
 
@@ -408,6 +408,13 @@ void MusicManager::stop() {
 
 bool MusicManager::isPlaying() const {
     return nowPlayingIndex != -1;
+}
+
+int MusicManager::getPlaybackElapsedMs() const {
+    if (nowPlayingIndex == -1) return 0;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - playbackStartTime).count();
+    return static_cast<int>(elapsed);
 }
 
 const Song* MusicManager::getNowPlaying() const {
@@ -426,6 +433,7 @@ void MusicManager::playNext() {
     } else {
         nowPlayingIndex = (nowPlayingIndex + 1) % library.size();
     }
+    playbackStartTime = std::chrono::steady_clock::now();
 }
 
 void MusicManager::playPrevious() {
@@ -435,6 +443,7 @@ void MusicManager::playPrevious() {
     } else {
         nowPlayingIndex = (nowPlayingIndex - 1 + library.size()) % library.size();
     }
+    playbackStartTime = std::chrono::steady_clock::now();
 }
 
 string MusicManager::getTotalRuntimeFormatted() const {
