@@ -1,28 +1,38 @@
+/*
+ * MenuSection.cpp
+ * ===============
+ * Displays the main menu of the music player.
+ * Shows different options depending on whether a song is playing.
+ *
+ * This file is #included by main.cpp (unity build), so it has
+ * access to MusicManager, Screen, and UIUtils automatically.
+ */
+
 #pragma once
-#include "../song_management/MusicManager.cpp"
-#include "Screen.cpp"
-#include "UIUtils.cpp"
 #include <iostream>
 #include <string>
+#include "Screen.cpp"
+#include "UIUtils.cpp"
+#include "../song_management/MusicManager.cpp"
 
 using namespace std;
 
+// Displays the main menu and returns the next screen to navigate to
 Screen showMenu(MusicManager& manager) {
     manager.refreshFromFolder("Music");
-    
+
     UIUtils::clearScreen();
     bool playing = (manager.getNowPlayingIndex() != -1);
 
     if (playing) {
         string title = manager.getNowPlaying()->getTitle();
         string artist = manager.getNowPlaying()->getArtist();
-        
+
         string center_title = "♫ NOW PLAYING: " + title + " ♫";
         string center_artist = "by " + artist;
-        
+
         int pad1 = (62 - UIUtils::visualLength(center_title)) / 2;
         int pad2 = (62 - UIUtils::visualLength(center_artist)) / 2;
-        
         if (pad1 < 0) pad1 = 0;
         if (pad2 < 0) pad2 = 0;
 
@@ -63,12 +73,11 @@ Screen showMenu(MusicManager& manager) {
              << "  ║                                                                ║\n"
              << "  ╚════════════════════════════════════════════════════════════════╝\n";
     }
-    
-    if (manager.getSongCount() > 0) {
+
+    if (manager.getSongCount() > 0)
         cout << "  | " << manager.getSongCount() << " songs |\n\n\n";
-    } else {
+    else
         cout << "\n\n\n";
-    }
 
     cout << "  ▸ Select option: ";
     int choice = UIUtils::readIntChoice();

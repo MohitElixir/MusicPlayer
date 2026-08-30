@@ -1,9 +1,16 @@
+/*
+ * PlaylistsSection.cpp
+ * ====================
+ * Manages user playlists — create new ones, view existing ones,
+ * and play songs from within a playlist.
+ */
+
 #pragma once
-#include "../song_management/MusicManager.cpp"
-#include "Screen.cpp"
-#include "UIUtils.cpp"
 #include <iostream>
 #include <string>
+#include "Screen.cpp"
+#include "UIUtils.cpp"
+#include "../song_management/MusicManager.cpp"
 
 using namespace std;
 
@@ -14,7 +21,10 @@ Screen showPlaylists(MusicManager& manager) {
         UIUtils::printBoxLine("  No playlists found.");
     } else {
         for (size_t i = 0; i < manager.getPlaylists().size(); ++i) {
-            string line = "  [" + to_string(i + 1) + "]    " + manager.getPlaylists()[i].name + " (" + to_string(manager.getPlaylists()[i].songIndices.size()) + " songs)";
+            string line = "  [" + to_string(i + 1) + "]    "
+                          + manager.getPlaylists()[i].name
+                          + " (" + to_string(manager.getPlaylists()[i].songIndices.size())
+                          + " songs)";
             UIUtils::printBoxLine(line);
         }
     }
@@ -26,7 +36,7 @@ Screen showPlaylists(MusicManager& manager) {
     UIUtils::printBoxLine("  [0] Back");
 
     UIUtils::printBoxBottom();
-    
+
     cout << "\n  ▸ Select option: ";
     int choice = UIUtils::readIntChoice();
 
@@ -40,19 +50,20 @@ Screen showPlaylists(MusicManager& manager) {
         int plChoice = UIUtils::readIntChoice();
         if (plChoice > 0 && plChoice <= static_cast<int>(manager.getPlaylists().size())) {
             const Playlist& pl = manager.getPlaylists()[plChoice - 1];
-            
+
             UIUtils::printBoxTop("★  " + pl.name);
             if (pl.songIndices.empty()) {
                 UIUtils::printBoxLine("  Playlist is empty.");
             } else {
                 for (size_t i = 0; i < pl.songIndices.size(); ++i) {
                     const Song* s = manager.getSongAt(pl.songIndices[i]);
-                    string line = "  [" + to_string(i + 1) + "]    " + s->getTitle() + " - " + s->getArtist();
+                    string line = "  [" + to_string(i + 1) + "]    "
+                                  + s->getTitle() + " - " + s->getArtist();
                     UIUtils::printBoxLine(line);
                 }
             }
             UIUtils::printBoxBottom();
-            
+
             cout << "\n  ▸ Song # to play, or 0 to go back: ";
             int songChoice = UIUtils::readIntChoice();
             if (songChoice > 0 && songChoice <= static_cast<int>(pl.songIndices.size())) {
@@ -60,7 +71,7 @@ Screen showPlaylists(MusicManager& manager) {
                     cout << "  Error: File missing or invalid.\n";
                     UIUtils::pause();
                 } else {
-                    UIUtils::playSystemAudio(manager.getNowPlaying());
+                    manager.startAudio(manager.getNowPlaying()->getFilePath());
                     return Screen::NOW_PLAYING;
                 }
             }
@@ -78,6 +89,6 @@ Screen showPlaylists(MusicManager& manager) {
     } else if (choice == 0) {
         return Screen::MENU;
     }
-    
+
     return Screen::PLAYLISTS;
 }

@@ -1,9 +1,17 @@
+/*
+ * FavoritesSection.cpp
+ * ====================
+ * Shows all songs marked as favorites and allows
+ * playing them directly from this list.
+ */
+
 #pragma once
-#include "../song_management/MusicManager.cpp"
-#include "Screen.cpp"
-#include "UIUtils.cpp"
 #include <iostream>
 #include <string>
+#include <vector>
+#include "Screen.cpp"
+#include "UIUtils.cpp"
+#include "../song_management/MusicManager.cpp"
 
 using namespace std;
 
@@ -15,7 +23,9 @@ Screen showFavorites(MusicManager& manager) {
         UIUtils::printBoxLine("  You have no favorite songs yet.");
     } else {
         for (size_t i = 0; i < favs.size(); ++i) {
-            string line = "  [" + to_string(i + 1) + "]    " + manager.getSongAt(favs[i])->getTitle() + " - " + manager.getSongAt(favs[i])->getArtist();
+            string line = "  [" + to_string(i + 1) + "]    "
+                          + manager.getSongAt(favs[i])->getTitle() + " - "
+                          + manager.getSongAt(favs[i])->getArtist();
             UIUtils::printBoxLine(line);
         }
     }
@@ -30,7 +40,7 @@ Screen showFavorites(MusicManager& manager) {
             cout << "  Error: File missing or invalid.\n";
             UIUtils::pause();
         } else {
-            UIUtils::playSystemAudio(manager.getNowPlaying());
+            manager.startAudio(manager.getNowPlaying()->getFilePath());
             return Screen::NOW_PLAYING;
         }
     }
